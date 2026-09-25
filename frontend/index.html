@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Farm - Disease Prediction</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Hidden Google Translate UI to keep it clean -->
+    <style>
+        /* Hide Google Translate Banner and Tooltips aggressively */
+        .goog-te-banner-frame { display: none !important; }
+        .skiptranslate iframe { display: none !important; }
+        body { top: 0px !important; position: static !important; }
+        #google_translate_element { display: none !important; }
+        .goog-tooltip { display: none !important; }
+        .goog-tooltip:hover { display: none !important; }
+        .goog-text-highlight { background-color: transparent !important; border: none !important; box-shadow: none !important; }
+        
+        /* Auth Screen Styles */
+        .auth-view {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 0;
+            z-index: 1050;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .auth-card {
+            background: rgba(18, 30, 18, 0.65);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(40, 167, 69, 0.25);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), 0 0 20px rgba(40, 167, 69, 0.1);
+            color: #ffffff;
+            width: 100%;
+            max-width: 480px;
+            padding: 2.5rem;
+            transition: all 0.3s ease;
+        }
+        .auth-card:hover {
+            border-color: rgba(40, 167, 69, 0.45);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), 0 0 30px rgba(40, 167, 69, 0.2);
+        }
+        .auth-tabs {
+            display: flex;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 2rem;
+        }
+        .auth-tab {
+            flex: 1;
+            text-align: center;
+            padding: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.5);
+            transition: all 0.3s;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+        .auth-tab.active {
+            color: #28a745;
+            border-bottom-color: #28a745;
+        }
+        .auth-input-group {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+        .auth-input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+        }
+        .auth-input-group input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            color: #ffffff;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        .auth-input-group input:focus {
+            border-color: #28a745;
+            outline: none;
+            box-shadow: 0 0 10px rgba(40, 167, 69, 0.3);
+            background: rgba(0, 0, 0, 0.6);
+        }
+        .auth-btn {
+            background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 0.8rem;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 1.1rem;
+            width: 100%;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+        .auth-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.5);
+            background: linear-gradient(135deg, #2cbd49 0%, #218838 100%);
+        }
+        .auth-btn:disabled {
+            background: #444;
+            transform: none;
+            box-shadow: none;
+        }
+        .auth-link {
+            color: #28a745;
+            text-decoration: none;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+        .auth-link:hover {
+            color: #2cbd49;
+            text-decoration: underline;
+        }
+        
+        /* Profile View Styles */
+        .profile-card {
+            background: rgba(18, 30, 18, 0.65);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(40, 167, 69, 0.25);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            color: #ffffff;
+        }
+        .stat-badge-glow {
+            font-size: 2.2rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #2cbd49 0%, #28a745 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 10px rgba(40, 167, 69, 0.1);
+        }
+    </style>
+</head>
+<body style="background: #0a0f0a;">
+
+<!-- Triangle Particles Background Canvas -->
+<canvas id="triangle-particles-canvas"></canvas>
+
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-success d-none" id="main-navbar">
+    <div class="container-fluid px-4">
+        <a class="navbar-brand fw-bold" href="#" onclick="showView('home')">🌱 Smart Farm</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto navbar-section-group align-items-center">
+                <li class="nav-item">
+                    <a class="nav-link home-nav-btn active" href="#" id="nav-home" onclick="showView('home')">🏠 Home</a>
+                </li>
+                <li class="nav-item auth-required">
+                    <a class="nav-link" href="#" id="nav-disease" onclick="showView('disease')">Disease Prediction</a>
+                </li>
+                <li class="nav-item auth-required">
+                    <a class="nav-link" href="#" id="nav-climate" onclick="showView('climate')">Climate Dashboard</a>
+                </li>
+                <li class="nav-item auth-required">
+                    <a class="nav-link" id="nav-plantfarm" href="#" onclick="showView('plantfarm')">🌱 Plant Farm</a>
+                </li>
+                <li class="nav-item auth-required">
+                    <a class="nav-link" id="nav-animalfarm" href="#" onclick="showView('animalfarm')">🐾 Animal Farm</a>
+                </li>
+                <li class="nav-item auth-required">
+                    <a class="nav-link" id="nav-analysis" href="#" onclick="showView('analysis')">📊 Analytics Dashboard</a>
+                </li>
+                <li class="nav-item auth-required">
+                    <a class="nav-link" id="nav-market" href="#" onclick="showView('market')">📈 Market</a>
+                </li>
+                <li class="nav-item unauth-only">
+                    <a class="nav-link fw-bold" href="#" onclick="showAuthView('login')">Login</a>
+                </li>
+                <li class="nav-item unauth-only">
+                    <a class="btn btn-success btn-sm ms-2 rounded-pill px-3" href="#" onclick="showAuthView('register')" style="margin-top: 0.2rem;">Start the Journey</a>
+                </li>
+            </ul>
+            
+            <ul class="navbar-nav align-items-center">
+                <li class="nav-item dropdown auth-required">
+                    <a class="nav-link fw-bold" href="#" id="nav-profile" role="button" data-bs-toggle="dropdown" style="font-size: 1.4rem; padding: 0.2rem 0.6rem !important; line-height: 1;" title="Profile">
+                        👤
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                        <li><a class="dropdown-item" href="#" onclick="showView('profile')">👤 View Profile</a></li>
+                        <li><hr class="dropdown-divider border-secondary"></li>
+                        <li><a class="dropdown-item text-danger fw-bold" href="#" onclick="handleLogout(); return false;">🚪 Logout</a></li>
+                    </ul>
+                </li>
+                
+                <li class="nav-item dropdown ms-2">
+                    <a class="nav-link text-success" href="#" id="languageDropdown" role="button" data-bs-toggle="dropdown" style="font-size: 1.15rem; padding: 0.3rem 0.6rem !important; line-height: 1;" title="Language Selection">
+                        🌐
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                        <li><a class="dropdown-item" href="#" onclick="changeLanguage('en')">English</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="changeLanguage('hi')">Hindi (हिन्दी)</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="changeLanguage('ta')">Tamil (தமிழ்)</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Hidden Google Translate Element -->
+<div id="google_translate_element"></div>
+<script type="text/javascript">
+function googleTranslateElementInit() {
+  new google.translate.TranslateElement({pageLanguage: 'en', includedLanguages: 'en,hi,ta', autoDisplay: false}, 'google_translate_element');
+}
+</script>
+<script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+<!-- ======================================================== -->
+<!-- AUTH PAGE – Premium Glassmorphism Registration & Login     -->
+<!-- ======================================================== -->
+<div id="auth-view" class="auth-view d-none">
+    <div class="auth-card position-relative">
+        <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" aria-label="Close" onclick="closeAuthView()"></button>
+        <div class="text-center mb-4">
+            <h2 class="fw-bold" style="letter-spacing: 1px;">🌱 Smart Farm</h2>
+            <p class="text-success-50 text-muted small">AI-Powered precision agriculture intelligence platform</p>
+        </div>
+        
+        <div class="auth-tabs" id="auth-tabs-container">
+            <div class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Sign In</div>
+            <div class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Create Account</div>
+        </div>
+        
+        <div id="auth-error-alert" class="alert alert-danger d-none text-center p-2 mb-3" style="font-size:0.9rem;" role="alert"></div>
+        <div id="auth-success-alert" class="alert alert-success d-none text-center p-2 mb-3" style="font-size:0.9rem;" role="alert"></div>
+        
+        <!-- Login Form -->
+        <form id="login-form">
+            <div class="auth-input-group">
+                <label for="login-email">Email Address</label>
+                <input type="email" id="login-email" required placeholder="name@domain.com">
+            </div>
+            <div class="auth-input-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" required placeholder="••••••••">
+            </div>
+            <div class="text-end mb-3">
+                <a href="#" class="auth-link" onclick="switchAuthTab('forgot'); return false;">Forgot Password?</a>
+            </div>
+            <button type="submit" class="auth-btn" id="login-btn">Sign In</button>
+        </form>
+        
+        <!-- Register Form -->
+        <form id="register-form" class="d-none">
+            <div class="auth-input-group">
+                <label for="register-name">Full Name</label>
+                <input type="text" id="register-name" required placeholder="John Doe">
+            </div>
+            <div class="auth-input-group">
+                <label for="register-email">Email Address</label>
+                <input type="email" id="register-email" required placeholder="name@domain.com">
+            </div>
+            <div class="auth-input-group">
+                <label for="register-password">Password</label>
+                <input type="password" id="register-password" required placeholder="Minimum 6 characters">
+            </div>
+            <button type="submit" class="auth-btn" id="register-btn">Create Account</button>
+        </form>
+        
+        <!-- Forgot Password Form -->
+        <form id="forgot-form" class="d-none">
+            <p class="small text-muted mb-4">Enter your email address to receive a 6-digit verification OTP.</p>
+            <div class="auth-input-group">
+                <label for="forgot-email">Email Address</label>
+                <input type="email" id="forgot-email" required placeholder="name@domain.com">
+            </div>
+            <button type="submit" class="auth-btn mb-3" id="forgot-btn">Send OTP</button>
+            <div class="text-center">
+                <a href="#" class="auth-link" onclick="switchAuthTab('login'); return false;">Back to Login</a>
+            </div>
+        </form>
+        
+        <!-- Reset Password Form -->
+        <form id="reset-form" class="d-none">
+            <p class="small text-muted mb-4">Enter the 6-digit OTP sent to your email and choose a new password.</p>
+            <div class="auth-input-group">
+                <label for="reset-otp">Verification OTP</label>
+                <input type="text" id="reset-otp" required placeholder="6-digit code" maxlength="6">
+            </div>
+            <div class="auth-input-group">
+                <label for="reset-password">New Password</label>
+                <input type="password" id="reset-password" required placeholder="Minimum 6 characters">
+            </div>
+            <button type="submit" class="auth-btn mb-3" id="reset-btn">Verify & Reset Password</button>
+            <div class="text-center">
+                <a href="#" class="auth-link" onclick="switchAuthTab('login'); return false;">Back to Login</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="home-view" class="home-view">
+    
+    <!-- HERO SECTION -->
+    <section class="hero-section">
+        <img src="images/hero_farm_landscape.png" alt="Smart Farm Landscape" class="hero-bg-image">
+        <div class="hero-overlay"></div>
+        
+        <!-- Floating Particles -->
+        <div class="floating-particles">
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+        </div>
+        
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-7">
+                    <div class="hero-content">
+                        <div class="hero-badge">
+                            <span class="pulse-dot"></span>
+                            AI-Powered Farming Intelligence
+                        </div>
+                        <h1 class="hero-title">
+                            Grow Smarter,<br>
+                            <span class="gradient-text">Harvest Better.</span>
+                        </h1>
+                        <p class="hero-subtitle">
+                            Transform your farming with AI-driven disease detection, real-time climate insights, 
+                            livestock management, and market intelligence — all in one powerful platform.
+                        </p>
+                        <div class="hero-buttons">
+                            <a href="#" class="btn-glow btn-glow-primary" onclick="showView('disease'); return false;">
+                                🔬 Start Predicting
+                            </a>
+                            <a href="#" class="btn-glow btn-glow-outline" onclick="showView('plantfarm'); return false;">
+                                🌱 Manage Farm
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="hero-stats">
+                        <div class="hero-stats-grid">
+                            <div class="stat-card">
+                                <span class="stat-icon">🔬</span>
+                                <span class="stat-number">AI</span>
+                                <span class="stat-label">Disease Detection</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-icon">🌤️</span>
+                                <span class="stat-number">24/7</span>
+                                <span class="stat-label">Climate Monitoring</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-icon">📈</span>
+                                <span class="stat-number">Live</span>
+                                <span class="stat-label">Market Prices</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-icon">🐾</span>
+                                <span class="stat-number">360°</span>
+                                <span class="stat-label">Farm Management</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURES SECTION -->
+    <section class="features-section">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <span class="section-label">✨ Core Features</span>
+                <h2 class="section-title">Everything Your Farm Needs</h2>
+                <p class="section-subtitle">
+                    Six powerful modules designed to maximize your yield, minimize risk, and boost profitability.
+                </p>
+            </div>
+
+            <div class="row g-4">
+                <!-- Feature 1: Disease Prediction -->
+                <div class="col-lg-4 col-md-6 animate-on-scroll animate-delay-1">
+                    <div class="feature-card" onclick="showView('disease')">
+                        <div style="overflow:hidden; height:220px;">
+                            <img src="images/feature_disease_detection.png" alt="AI Disease Detection" class="feature-card-image">
+                        </div>
+                        <div class="feature-card-body">
+                            <div class="feature-card-icon">🔬</div>
+                            <h3 class="feature-card-title">Disease Prediction</h3>
+                            <p class="feature-card-desc">
+                                Upload a photo of your crop and our AI instantly identifies diseases with cure recommendations.
+                            </p>
+                            <span class="feature-card-link">
+                                Try it now <span class="arrow">→</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feature 2: Climate Dashboard -->
+                <div class="col-lg-4 col-md-6 animate-on-scroll animate-delay-2">
+                    <div class="feature-card" onclick="showView('climate')">
+                        <div style="overflow:hidden; height:220px;">
+                            <img src="images/feature_climate_dashboard.png" alt="Climate Dashboard" class="feature-card-image">
+                        </div>
+                        <div class="feature-card-body">
+                            <div class="feature-card-icon">🌤️</div>
+                            <h3 class="feature-card-title">Climate Dashboard</h3>
+                            <p class="feature-card-desc">
+                                Real-time weather data, disease risk alerts, and smart watering & fertilizing recommendations.
+                            </p>
+                            <span class="feature-card-link">
+                                View Dashboard <span class="arrow">→</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feature 3: Plant Farm -->
+                <div class="col-lg-4 col-md-6 animate-on-scroll animate-delay-3">
+                    <div class="feature-card" onclick="showView('plantfarm')">
+                        <div style="overflow:hidden; height:220px;">
+                            <img src="images/feature_analytics.png" alt="Plant Farm Management" class="feature-card-image">
+                        </div>
+                        <div class="feature-card-body">
+                            <div class="feature-card-icon">🌾</div>
+                            <h3 class="feature-card-title">Plant Farm Manager</h3>
+                            <p class="feature-card-desc">
+                                Track planting sessions, daily logs, investments, and harvest yields with full financial reports.
+                            </p>
+                            <span class="feature-card-link">
+                                Manage Plants <span class="arrow">→</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feature 4: Livestock -->
+                <div class="col-lg-4 col-md-6 animate-on-scroll animate-delay-1">
+                    <div class="feature-card" onclick="showView('animalfarm')">
+                        <div style="overflow:hidden; height:220px;">
+                            <img src="images/feature_livestock.png" alt="Livestock Management" class="feature-card-image">
+                        </div>
+                        <div class="feature-card-body">
+                            <div class="feature-card-icon">🐄</div>
+                            <h3 class="feature-card-title">Livestock Manager</h3>
+                            <p class="feature-card-desc">
+                                Manage cows, hens, goats and more — track feeding, medicine, yield, and profitability per herd.
+                            </p>
+                            <span class="feature-card-link">
+                                Manage Animals <span class="arrow">→</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feature 5: Analytics -->
+                <div class="col-lg-4 col-md-6 animate-on-scroll animate-delay-2">
+                    <div class="feature-card" onclick="showView('analysis')">
+                        <div style="overflow:hidden; height:220px;">
+                            <img src="images/feature_climate_dashboard.png" alt="Analysis" class="feature-card-image">
+                        </div>
+                        <div class="feature-card-body">
+                            <div class="feature-card-icon">📊</div>
+                            <h3 class="feature-card-title">Analysis</h3>
+                            <p class="feature-card-desc">
+                                Visualize your farm performance with interactive charts, profit analysis, and leaderboards.
+                            </p>
+                            <span class="feature-card-link">
+                                See Analysis <span class="arrow">→</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feature 6: Market Intelligence -->
+                <div class="col-lg-4 col-md-6 animate-on-scroll animate-delay-3">
+                    <div class="feature-card" onclick="showView('market')">
+                        <div style="overflow:hidden; height:220px;">
+                            <img src="images/feature_market_intelligence.png" alt="Market Intelligence" class="feature-card-image">
+                        </div>
+                        <div class="feature-card-body">
+                            <div class="feature-card-icon">📈</div>
+                            <h3 class="feature-card-title">Market Intelligence</h3>
+                            <p class="feature-card-desc">
+                                Live market prices, AI forecasts, nearby mandi data, and smart selling recommendations.
+                            </p>
+                            <span class="feature-card-link">
+                                View Market <span class="arrow">→</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BENTO SHOWCASE SECTION -->
+    <section class="bento-section">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <span class="section-label">🎯 Platform Showcase</span>
+                <h2 class="section-title">Built for Modern Farmers</h2>
+                <p class="section-subtitle">
+                    A visual tour of the intelligent tools powering tomorrow's agriculture.
+                </p>
+            </div>
+
+            <div class="bento-grid">
+                <!-- Bento Item 1 – Large -->
+                <div class="bento-item bento-item-1 animate-on-scroll animate-delay-1">
+                    <img src="images/hero_farm_landscape.png" alt="Smart Farm" class="bento-bg">
+                    <div class="bento-overlay"></div>
+                    <div class="bento-content">
+                        <span class="bento-tag">🌍 Global Vision</span>
+                        <h3 class="bento-title">AI-Powered Precision Agriculture</h3>
+                        <p class="bento-desc">Harness the power of machine learning to detect diseases early, optimize irrigation schedules, and maximize crop yield across every season.</p>
+                    </div>
+                </div>
+
+                <!-- Bento Item 2 -->
+                <div class="bento-item bento-item-2 animate-on-scroll animate-delay-2">
+                    <img src="images/feature_disease_detection.png" alt="Disease Detection" class="bento-bg">
+                    <div class="bento-overlay"></div>
+                    <div class="bento-content">
+                        <span class="bento-tag">🔬 Deep Learning</span>
+                        <h3 class="bento-title">Instant Disease Recognition</h3>
+                        <p class="bento-desc">Our YOLOv8-powered engine analyzes crop images in seconds and provides cure steps.</p>
+                    </div>
+                </div>
+
+                <!-- Bento Item 3 -->
+                <div class="bento-item bento-item-3 animate-on-scroll animate-delay-1">
+                    <img src="images/feature_climate_dashboard.png" alt="Weather Monitoring" class="bento-bg">
+                    <div class="bento-overlay"></div>
+                    <div class="bento-content">
+                        <span class="bento-tag">🌦️ Climate</span>
+                        <h3 class="bento-title">Smart Weather Alerts</h3>
+                        <p class="bento-desc">Stay ahead with real-time weather data and automated email alerts.</p>
+                    </div>
+                </div>
+
+                <!-- Bento Item 4 -->
+                <div class="bento-item bento-item-4 animate-on-scroll animate-delay-2">
+                    <img src="images/feature_livestock.png" alt="Livestock" class="bento-bg">
+                    <div class="bento-overlay"></div>
+                    <div class="bento-content">
+                        <span class="bento-tag">🐾 Livestock</span>
+                        <h3 class="bento-title">Complete Animal Tracking</h3>
+                        <p class="bento-desc">Monitor feeding, health, yield and profitability of every herd.</p>
+                    </div>
+                </div>
+
+                <!-- Bento Item 5 -->
+                <div class="bento-item bento-item-5 animate-on-scroll animate-delay-3">
+                    <img src="images/feature_market_intelligence.png" alt="Market Data" class="bento-bg">
+                    <div class="bento-overlay"></div>
+                    <div class="bento-content">
+                        <span class="bento-tag">💰 Market</span>
+                        <h3 class="bento-title">Real-Time Market Prices</h3>
+                        <p class="bento-desc">Track commodity prices, compare mandis, and get AI-powered selling advice.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA SECTION -->
+    <section class="cta-section animate-on-scroll">
+        <div class="container">
+            <h2 class="cta-title">Ready to Transform<br>Your Farm?</h2>
+            <p class="cta-subtitle">
+                Join the future of agriculture. Start using AI-powered tools to grow smarter and harvest better — today.
+            </p>
+            <div class="hero-buttons" style="justify-content: center; opacity: 1;">
+                <a href="#" class="btn-glow btn-glow-primary" onclick="showView('disease'); return false;">
+                    🚀 Get Started Now
+                </a>
+                <a href="#" class="btn-glow btn-glow-outline" onclick="showView('plantfarm'); return false;">
+                    📋 Create Farm Session
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="home-footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-4 mb-4">
+                    <div class="footer-brand">🌱 Smart Farm</div>
+                    <p class="footer-desc">
+                        AI-powered precision agriculture platform helping farmers grow smarter, reduce losses, and maximize profitability.
+                    </p>
+                </div>
+                <div class="col-lg-2 col-md-4 mb-4">
+                    <h6 class="footer-links-title">Platform</h6>
+                    <ul class="footer-links">
+                        <li><a href="#" onclick="showView('disease'); return false;">Disease Detection</a></li>
+                        <li><a href="#" onclick="showView('climate'); return false;">Climate Dashboard</a></li>
+                        <li><a href="#" onclick="showView('plantfarm'); return false;">Plant Farm</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2 col-md-4 mb-4">
+                    <h6 class="footer-links-title">Management</h6>
+                    <ul class="footer-links">
+                        <li><a href="#" onclick="showView('animalfarm'); return false;">Livestock</a></li>
+                        <li><a href="#" onclick="showView('analysis'); return false;">Analytics</a></li>
+                        <li><a href="#" onclick="showView('market'); return false;">Market Intel</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-4 col-md-4 mb-4">
+                    <h6 class="footer-links-title">Technology</h6>
+                    <ul class="footer-links">
+                        <li><a href="#">YOLOv8 AI Engine</a></li>
+                        <li><a href="#">Real-time Weather API</a></li>
+                        <li><a href="#">Market Data Analytics</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                © 2026 Smart Farm. Built with 💚 for the future of agriculture.
+            </div>
+        </div>
+    </footer>
+</div>
+
+<div class="container mb-5 d-none" id="disease-prediction-view">
+    <div class="row mb-4">
+        <div class="col-12 view-header">
+            <h2>🔬 Disease Prediction</h2>
+            <p>Upload a plant image and let our AI detect diseases with recommended cure steps.</p>
+        </div>
+    </div>
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header text-center py-3">
+                    <h2 class="h4 mb-0 fw-bold">Predict Plant Disease</h2>
+                </div>
+                <div class="card-body p-4">
+                    <div id="alert-container"></div>
+                    
+                    <form id="prediction-form">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Upload Image</label>
+                            <div id="drop-zone" class="border border-2 border-dashed rounded p-5 text-center text-muted bg-light" style="cursor: pointer;">
+                                <p class="mb-0">Drag & drop an image here, or click to select</p>
+                                <input type="file" id="image-input" accept="image/*" class="d-none">
+                                <img id="image-preview" class="img-fluid mt-3 rounded d-none" style="max-height: 250px;">
+                            </div>
+                        </div>
+
+
+
+                        <button type="submit" id="submit-btn" class="btn btn-success w-100 py-2 fw-bold" disabled>Predict Disease</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div id="result-section" class="card shadow-sm mt-4 d-none">
+                <div class="card-header text-center py-3">
+                    <h2 class="h4 mb-0 fw-bold">Prediction Result</h2>
+                </div>
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <img id="res-annotated-image" class="img-fluid rounded border border-2 border-success d-none" style="max-height: 400px; width: auto;" alt="Annotated Detection Result">
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-sm-6 mb-3 mb-sm-0">
+                            <h3 id="res-disease-name" class="fw-bold text-dark"></h3>
+                            <div class="d-flex align-items-center gap-2 mt-2">
+                                <span id="res-healthy" class="badge"></span>
+                                <span id="res-severity" class="badge bg-secondary"></span>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 text-sm-end">
+                            <p class="text-muted mb-1">Top Confidence</p>
+                            <h4 id="res-confidence" class="fw-bold mb-0"></h4>
+                        </div>
+                    </div>
+
+                    <h4 class="h5 fw-bold text-dark mb-3 border-bottom pb-2">All Detections</h4>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Detected Disease</th>
+                                    <th style="width: 25%">Confidence</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detections-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h4 class="h5 fw-bold text-dark mb-3 border-bottom pb-2">Recommended Cure Steps</h4>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 10%">Step</th>
+                                    <th style="width: 30%">Action</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cure-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-4 text-center">
+                        <button id="reset-btn" class="btn btn-outline-success">Upload New Image</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="container mb-5 d-none" id="climate-prediction-view">
+    <div class="row mb-4">
+        <div class="col-12 view-header">
+            <h2>🌤️ Climate Dashboard</h2>
+            <p>Real-time weather data, disease risk alerts, and smart watering & fertilizing recommendations.</p>
+        </div>
+    </div>
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h2 class="h4 mb-0 fw-bold">Active Farming Session</h2>
+                    <div class="d-flex gap-2">
+                        <select id="climate-session-selector" class="form-select form-select-sm" onchange="handleClimateSessionSelect()">
+                            <option value="">Select a session...</option>
+                        </select>
+                        <button class="btn btn-sm btn-outline-primary" onclick="sendAlert()">📧 Send Alert to Email</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="session-info" class="d-flex align-items-center gap-4">
+                        <!-- Filled by JS -->
+                        <span class="text-muted">Please select a session from the dropdown above to view climate and recommendations.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0 fw-bold">🌤️ Today's Weather</h5>
+                        </div>
+                        <div class="card-body" id="weather-info">
+                            <span class="text-muted">Loading weather...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0 fw-bold">🦠 Disease Risk</h5>
+                        </div>
+                        <div class="card-body" id="disease-risk-info">
+                            <span class="text-muted">Loading risk data...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4 border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0 fw-bold">💧 Watering Recommendation</h5>
+                </div>
+                <div class="card-body" id="watering-rec">
+                    <span class="text-muted">Loading recommendation...</span>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0 fw-bold">🌿 Fertilizing Recommendation</h5>
+                </div>
+                <div class="card-body" id="fertilizing-rec">
+                    <span class="text-muted">Loading recommendation...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container mb-5 d-none" id="plant-farm-view">
+    <div class="row mb-4">
+        <div class="col-12 view-header">
+            <h2>🌾 Plant Farm Management</h2>
+            <p>Track planting sessions, daily logs, investments, and harvest yields.</p>
+        </div>
+    </div>
+    
+    <!-- Dashboard Summary -->
+    <div class="row mb-4 text-center">
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-info h-100">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase mb-1">Total Investment</h6>
+                    <h3 class="fw-bold text-dark" id="summary-investment">₹0</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-warning h-100">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase mb-1">Total Yield</h6>
+                    <h3 class="fw-bold text-dark" id="summary-yield">0 kg</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-success h-100">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase mb-1">Net Profit</h6>
+                    <h3 class="fw-bold text-success" id="summary-profit">₹0</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-primary h-100">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase mb-1">Profit Margin</h6>
+                    <h3 class="fw-bold text-primary" id="summary-margin">0%</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0 fw-bold">Active Sessions</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="session-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+                <div class="card-footer bg-white text-center">
+                    <button class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#newSessionModal">+ Start New Session</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8 mb-4">
+            <div class="card shadow-sm h-100 d-none" id="manage-session-card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold" id="manage-session-title">Manage Session</h5>
+                    <button class="btn btn-sm btn-outline-warning fw-bold" onclick="harvestSession()">🌾 Harvest & Complete</button>
+                </div>
+                <div class="card-body">
+                    <h6 class="fw-bold border-bottom pb-2">Log Daily Data</h6>
+                    <form id="daily-log-form">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Watered Today?</label>
+                                <select class="form-select" id="log-watered">
+                                    <option value="true">Yes</option>
+                                    <option value="false">No</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Reason</label>
+                                <input type="text" class="form-control" id="log-water-reason" placeholder="e.g., Soil was dry">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Fertilized Today?</label>
+                                <select class="form-select" id="log-fertilized" onchange="document.getElementById('log-fert-amount').disabled = (this.value === 'false'); if(this.value === 'false') document.getElementById('log-fert-amount').value = '0';">
+                                    <option value="false">No</option>
+                                    <option value="true">Yes</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" id="log-fert-label">Fertilizer Amount (kg/lit)</label>
+                                <input type="number" class="form-control" id="log-fert-amount" value="0" step="0.1" disabled>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Weather Condition</label>
+                                <select class="form-select" id="log-weather">
+                                    <option>Sunny</option>
+                                    <option>Rainy</option>
+                                    <option>Cloudy</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Notes</label>
+                                <input type="text" class="form-control" id="log-notes" placeholder="e.g., Leaves look healthy">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Submit Daily Log</button>
+                    </form>
+                    
+                    <h6 class="fw-bold border-bottom pb-2 mt-4">Daily Logs History</h6>
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        <ul class="list-group" id="daily-logs-history">
+                            <!-- Populated by JS -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center p-5 text-muted" id="no-session-selected">
+                <h4>Select a session to manage</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Session Modal -->
+<div class="modal fade" id="newSessionModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form id="new-session-form">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Start New Farming Session</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <h6 class="fw-bold text-success border-bottom pb-1">Basic Info</h6>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Crop Type</label>
+                <input type="text" class="form-control" id="ns-crop" required placeholder="e.g., Tomato">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Plot Name</label>
+                <input type="text" class="form-control" id="ns-plot" required placeholder="e.g., Plot A">
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Area (Cents)</label>
+                <input type="number" class="form-control" id="ns-area" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Soil Type</label>
+                <input type="text" class="form-control" id="ns-soil" required placeholder="e.g., Loam">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Location</label>
+                <input type="text" class="form-control" id="ns-location" required>
+            </div>
+        </div>
+
+        <h6 class="fw-bold text-success border-bottom pb-1 mt-4">Initial Investment</h6>
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Seed Qty</label>
+                <input type="number" class="form-control" id="ns-seed-qty" value="0" step="0.1">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Cost per Seed (₹)</label>
+                <input type="number" class="form-control" id="ns-seed-cost" value="0" step="0.1">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Total Land Cost (₹)</label>
+                <input type="number" class="form-control" id="ns-land-cost" value="0" step="0.1">
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Fertilizer Qty (Initial)</label>
+                <input type="number" class="form-control" id="ns-fert-qty" value="0" step="0.1">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Cost per Fertilizer Unit (₹)</label>
+                <input type="number" class="form-control" id="ns-fert-cost" value="0" step="0.1">
+            </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-success fw-bold w-100">Create Session</button>
+      </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- Animal Farm View                           -->
+<!-- ========================================== -->
+<div class="container mb-5 d-none" id="animal-farm-view">
+    <div class="row mb-4">
+        <div class="col-12 view-header">
+            <h2>🐾 Livestock Management</h2>
+            <p>Track your dairy cows, poultry, goats, and more!</p>
+        </div>
+    </div>
+    
+    <!-- Financial Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-light border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted text-uppercase mb-1">Total Inv.</h6>
+                    <h3 class="fw-bold text-dark mb-0" id="animal-summary-investment">₹0</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted text-uppercase mb-1">Total Yield</h6>
+                    <h3 class="fw-bold text-primary mb-0" id="animal-summary-yield">0</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted text-uppercase mb-1">Total Sales</h6>
+                    <h3 class="fw-bold text-success mb-0" id="animal-summary-sales">₹0</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-white-50 text-uppercase mb-1">Net Profit</h6>
+                    <h3 class="fw-bold mb-0" id="animal-summary-profit">₹0</h3>
+                    <small class="d-block mt-1 bg-white text-primary rounded px-2 py-1 fw-bold" id="animal-summary-margin">0%</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Col: Sessions List -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">Active Herds/Flocks</h5>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newAnimalSessionModal">+ New Session</button>
+                </div>
+                <div class="list-group list-group-flush" id="animal-session-list">
+                    <div class="p-3 text-muted text-center">Loading...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Col: Manage Selected Session -->
+        <div class="col-md-8 mb-4">
+            <div class="card shadow-sm h-100 d-none" id="manage-animal-session-card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold text-primary" id="manage-animal-session-title">Manage Session</h5>
+                    <button class="btn btn-sm btn-outline-danger fw-bold" onclick="closeAnimalSession()">🛑 Close Session</button>
+                </div>
+                <div class="card-body">
+                    <h6 class="fw-bold border-bottom pb-2">Log Daily Data</h6>
+                    <form id="animal-daily-log-form">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Food Given (kg)</label>
+                                <input type="number" class="form-control" id="animal-log-food" step="0.1" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Food Cost (₹)</label>
+                                <input type="number" class="form-control" id="animal-log-food-cost" step="0.1" required>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Yield (Liters / Eggs)</label>
+                                <input type="number" class="form-control" id="animal-log-yield" step="0.1" value="0">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Selling Price (per unit ₹)</label>
+                                <input type="number" class="form-control" id="animal-log-yield-price" step="0.1" value="0">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Medicine Given?</label>
+                                <select class="form-select" id="animal-log-medicine" onchange="document.getElementById('animal-log-med-details').classList.toggle('d-none', this.value === 'false')">
+                                    <option value="false">No</option>
+                                    <option value="true">Yes</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Deaths Today?</label>
+                                <input type="number" class="form-control" id="animal-log-deaths" value="0" min="0">
+                            </div>
+                        </div>
+                        <div class="row mb-3 d-none" id="animal-log-med-details">
+                            <div class="col-md-4">
+                                <label class="form-label">Med Name</label>
+                                <input type="text" class="form-control" id="animal-log-med-name">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Med Cost (₹)</label>
+                                <input type="number" class="form-control" id="animal-log-med-cost" value="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Reason</label>
+                                <input type="text" class="form-control" id="animal-log-med-reason">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label">Notes</label>
+                                <input type="text" class="form-control" id="animal-log-notes" placeholder="e.g., Cow #3 looks lethargic">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 fw-bold">Submit Daily Log</button>
+                    </form>
+                    
+                    <h6 class="fw-bold mt-5 border-bottom pb-2">History</h6>
+                    <ul class="list-group list-group-flush" id="animal-daily-logs-history" style="max-height: 400px; overflow-y: auto;">
+                        <li class="list-group-item text-muted text-center">No logs yet.</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm h-100" id="animal-no-session-selected">
+                <div class="card-body d-flex justify-content-center align-items-center text-muted h-100" style="min-height: 300px;">
+                    <div class="text-center">
+                        <h4 class="text-secondary">🐾 No Session Selected</h4>
+                        <p>Select an active herd/flock from the list on the left to manage it.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: New Animal Session -->
+<div class="modal fade" id="newAnimalSessionModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold">🐾 Start New Animal Session</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="new-animal-session-form">
+      <div class="modal-body">
+        <h6 class="text-muted border-bottom pb-2 mb-3">1. Basic Info</h6>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Animal Type</label>
+                <select class="form-select" id="nas-type" required>
+                    <option value="Cow">Cow</option>
+                    <option value="Hen">Hen</option>
+                    <option value="Goat">Goat</option>
+                    <option value="Duck">Duck</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Session/Herd Name</label>
+                <input type="text" class="form-control" id="nas-name" placeholder="e.g., Plot B Dairy Cows" required>
+            </div>
+        </div>
+        
+        <h6 class="text-muted border-bottom pb-2 mb-3 mt-4">2. Initial Investment</h6>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Number of Animals</label>
+                <input type="number" class="form-control" id="nas-count" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Cost per Animal (₹)</label>
+                <input type="number" class="form-control" id="nas-cost" required>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Initial Food Bought (kg)</label>
+                <input type="number" class="form-control" id="nas-food-qty" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Cost per kg Food (₹)</label>
+                <input type="number" class="form-control" id="nas-food-cost" required>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Initial Med/Vaccine Cost (₹)</label>
+                <input type="number" class="form-control" id="nas-med-cost" value="0">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Shelter/Coop Cost (₹)</label>
+                <input type="number" class="form-control" id="nas-shelter-cost" value="0">
+            </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary fw-bold w-100">Start Session</button>
+      </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Close Animal Session -->
+<div class="modal fade" id="closeAnimalSessionModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title fw-bold">🛑 Close Livestock Session</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="close-animal-session-form">
+      <div class="modal-body">
+        <p class="text-muted mb-3">Closing this session means the animals have been sold or the season has ended. Please enter the final sale details.</p>
+        <div class="mb-3">
+            <label class="form-label">Total Animals Sold</label>
+            <input type="number" class="form-control" id="cas-animals-sold" required min="0">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Selling Price per Animal (₹)</label>
+            <input type="number" class="form-control" id="cas-animal-price" required step="0.1" min="0">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-danger fw-bold w-100">Confirm & Close Session</button>
+      </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="container mb-5 d-none" id="analysis-dashboard-view">
+    <div class="row mb-4">
+        <div class="col-12 view-header">
+            <h2>📊 Farm Analysis</h2>
+            <p>Analyze your investments, profits, and losses across all plant and livestock farming sessions.</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Left Navigation Bar -->
+        <div class="col-md-3 mb-4">
+            <div class="accordion shadow-sm" id="analyticsSidebarAccordion">
+                
+                <!-- Plant Dash Accordion Item -->
+                <div class="accordion-item border-0 mb-2 rounded overflow-hidden shadow-sm">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button fw-bold text-success" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePlantDash">
+                            🌱 Plant Dash
+                        </button>
+                    </h2>
+                    <div id="collapsePlantDash" class="accordion-collapse collapse show" data-bs-parent="#analyticsSidebarAccordion">
+                        <div class="accordion-body p-0">
+                            <div class="list-group list-group-flush" id="analytics-plant-nav">
+                                <a href="#" class="list-group-item list-group-item-action active fw-bold" onclick="switchAnalyticsTab('plant'); return false;">All Plant Sessions</a>
+                                <div class="bg-light p-2 small fw-bold text-muted border-bottom border-top">Active Sessions</div>
+                                <div id="analytics-plant-active"></div>
+                                <div class="bg-light p-2 small fw-bold text-muted border-bottom border-top">Completed Sessions</div>
+                                <div id="analytics-plant-completed"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Animal Dash Accordion Item -->
+                <div class="accordion-item border-0 rounded overflow-hidden shadow-sm">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold text-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAnimalDash">
+                            🐾 Animal Dash
+                        </button>
+                    </h2>
+                    <div id="collapseAnimalDash" class="accordion-collapse collapse" data-bs-parent="#analyticsSidebarAccordion">
+                        <div class="accordion-body p-0">
+                            <div class="list-group list-group-flush" id="analytics-animal-nav">
+                                <a href="#" class="list-group-item list-group-item-action fw-bold" onclick="switchAnalyticsTab('animal'); return false;">All Animal Sessions</a>
+                                <div class="bg-light p-2 small fw-bold text-muted border-bottom border-top">Active Sessions</div>
+                                <div id="analytics-animal-active"></div>
+                                <div class="bg-light p-2 small fw-bold text-muted border-bottom border-top">Completed Sessions</div>
+                                <div id="analytics-animal-completed"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+        
+        <!-- Right Content Area -->
+        <div class="col-md-9">
+            <!-- Plant Analytics Content -->
+            <div id="plant-analytics-section">
+                <h4 class="mb-4 text-success fw-bold border-bottom pb-2 mt-2">🌱 Plant Analytics</h4>
+                <div class="row">
+                    <!-- Left Column: Charts -->
+        <div class="col-lg-8">
+            <div class="row mb-4">
+                <div class="col-md-5 mb-4 mb-md-0">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0 fw-bold">Cost Breakdown</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="position: relative; height: 250px; width: 100%;">
+                                <canvas id="costBreakdownChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0 fw-bold">Efficiency (Scatter)</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="position: relative; height: 250px; width: 100%;">
+                                <canvas id="scatterChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0 fw-bold">Investment vs Revenue</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="position: relative; height: 250px; width: 100%;">
+                                <canvas id="invRevChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0 fw-bold">Net Profit per Session</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="position: relative; height: 250px; width: 100%;">
+                                <canvas id="profitChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-5 mb-4 mb-md-0">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0 fw-bold">Crop Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="position: relative; height: 250px; width: 100%;">
+                                <canvas id="cropDistributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0 fw-bold">Resource Timeline</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="position: relative; height: 250px; width: 100%;">
+                                <canvas id="resourceTimelineChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column: Leaderboard -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-warning h-100">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0 fw-bold">🏆 High Revenue Board</h5>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush" id="revenue-leaderboard">
+                        <li class="list-group-item text-center text-muted py-4">Loading leaderboard...</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+            </div> <!-- End Plant Analytics Content -->
+
+            <!-- Animal Analytics Content -->
+            <div id="animal-analytics-section" class="d-none">
+                <h4 class="mb-4 text-primary fw-bold border-bottom pb-2 mt-2">🐾 Animal Analytics</h4>
+                <div class="row">
+        <!-- Main Charts Area -->
+        <div class="col-lg-8">
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold text-center">Cost Breakdown (Animals vs Food vs Shelter)</h5>
+                            <div style="position: relative; height:250px; width:100%">
+                                <canvas id="animalCostBreakdownChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold text-center">Investment vs. Revenue (Efficiency)</h5>
+                            <div style="position: relative; height:250px; width:100%">
+                                <canvas id="animalEfficiencyScatterChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold">Net Profit per Session</h5>
+                            <div style="position: relative; height:300px; width:100%">
+                                <canvas id="animalProfitBarChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-5 mb-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold text-center">Animal Distribution</h5>
+                            <div style="position: relative; height:250px; width:100%">
+                                <canvas id="animalDistributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-7 mb-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold text-center">Daily Yield & Food Timeline</h5>
+                            <div style="position: relative; height:250px; width:100%">
+                                <canvas id="animalTimelineChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column: Leaderboard -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h4 class="card-title fw-bold mb-4 text-center">🏆 High Yield Board</h4>
+                    <p class="text-muted text-center small mb-4">Top performing livestock sessions ranked by total yield.</p>
+                    
+                    <ul class="list-group list-group-flush" id="animal-leaderboard-list">
+                        <!-- Rendered dynamically -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+            </div> <!-- End Animal Analytics Content -->
+        </div> <!-- End Right Content Area -->
+    </div> <!-- End Row -->
+
+</div>
+<!-- ========================================== -->
+<!-- UNIFIED FARM DASHBOARD VIEW                -->
+<!-- ========================================== -->
+<div class="container-fluid mb-5 d-none px-4" id="unified-dashboard-view">
+    <div class="row mb-3">
+        <div class="col-12 view-header text-center">
+            <h2>🚜 Unified Farm Dashboard</h2>
+            <p>Manage all your plant and animal sessions and view detailed analytics in one place.</p>
+        </div>
+    </div>
+    <div class="row">
+        <!-- LEFT SIDEBAR -->
+        <div class="col-md-3 mb-4">
+            <div class="accordion shadow-sm" id="farmSidebarAccordion">
+                <!-- Plant Analysis -->
+                <div class="accordion-item border-0 mb-3 rounded overflow-hidden shadow-sm">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button fw-bold bg-success text-white" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePlant">
+                            🌱 Plant Analysis
+                        </button>
+                    </h2>
+                    <div id="collapsePlant" class="accordion-collapse collapse show" data-bs-parent="#farmSidebarAccordion">
+                        <div class="accordion-body p-0">
+                            <div class="list-group list-group-flush" id="unified-plant-session-list">
+                                <!-- JS Populated -->
+                            </div>
+                            <div class="p-2 bg-light text-center border-top">
+                                <button class="btn btn-sm btn-success w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#newSessionModal">+ New Plant Session</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Animal Analysis -->
+                <div class="accordion-item border-0 rounded overflow-hidden shadow-sm">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold bg-primary text-white" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAnimal">
+                            🐾 Animal Analysis
+                        </button>
+                    </h2>
+                    <div id="collapseAnimal" class="accordion-collapse collapse" data-bs-parent="#farmSidebarAccordion">
+                        <div class="accordion-body p-0">
+                            <div class="list-group list-group-flush" id="unified-animal-session-list">
+                                <!-- JS Populated -->
+                            </div>
+                            <div class="p-2 bg-light text-center border-top">
+                                <button class="btn btn-sm btn-primary w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#newAnimalSessionModal">+ New Animal Session</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- RIGHT CONTENT AREA -->
+        <div class="col-md-9" id="unified-content-area">
+            <!-- Content will be injected here via JS from the old hidden views -->
+            <div class="card shadow-sm h-100" id="unified-welcome">
+                <div class="card-body d-flex justify-content-center align-items-center text-muted" style="min-height: 400px;">
+                    <div class="text-center">
+                        <h3 class="text-secondary mb-3">Welcome to Farm Dashboard</h3>
+                        <p>Expand "Plant Analysis" or "Animal Analysis" on the left.</p>
+                        <p>Select "Overall Analytics" or a specific session to view its dashboard.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================================== -->
+<!-- MARKET INTELLIGENCE VIEW -->
+<!-- ===================================== -->
+<div class="container mb-5 d-none" id="market-intelligence-view">
+    <div class="row mb-4">
+        <div class="col-12 view-header">
+            <h2>📈 Market Intelligence</h2>
+            <p>Real-time market news, price analysis, and smart recommendations tailored to your active farm sessions.</p>
+        </div>
+    </div>
+    
+    <!-- Dynamic Market Dashboards -->
+    <div id="market-commodities-container">
+        <div class="text-center py-5">
+            <div class="spinner-border text-success" role="status"></div>
+            <p class="mt-2 text-muted">Analyzing your active sessions and fetching market data...</p>
+        </div>
+    </div>
+
+    <!-- Recommendations & News Row -->
+    <div class="row mt-4">
+        <!-- Smart Recommendations -->
+        <div class="col-lg-5 mb-4">
+            <div class="card shadow-sm border-0 h-100" style="border-left: 3px solid rgba(180, 230, 57, 0.4) !important;">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold text-success mb-4"><i class="bi bi-lightbulb-fill"></i> Smart Selling Recommendations</h5>
+                    <div id="market-recommendations-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Personalized News Feed -->
+        <div class="col-lg-7 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-0 pt-4 pb-0">
+                    <h5 class="card-title fw-bold">📰 Personalized News Feed</h5>
+                </div>
+                <div class="card-body">
+                    <div id="market-news-list" class="d-flex flex-column gap-3">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================================== -->
+<!-- PROFILE VIEW -->
+<!-- ===================================== -->
+<div class="container mb-5 d-none" id="profile-view">
+    <div class="row mb-4">
+        <div class="col-12 view-header text-center text-md-start">
+            <h2>👤 User Profile & Account</h2>
+            <p>View your account details and farming statistics.</p>
+        </div>
+    </div>
+    
+    <div class="row justify-content-center">
+        <div class="col-md-5 mb-4">
+            <div class="card profile-card p-4 shadow-sm border-0">
+                <div class="text-center mb-4">
+                    <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center mx-auto" style="width: 80px; height: 80px; font-size: 2.5rem; border: 3px solid rgba(40,167,69,0.3)">
+                        <span id="profile-avatar-letter">U</span>
+                    </div>
+                    <h3 class="fw-bold mt-3" id="profile-name">User Name</h3>
+                    <p class="text-muted small" id="profile-email">user@domain.com</p>
+                </div>
+                <hr class="border-secondary mb-4">
+                <div class="mb-3 d-flex justify-content-between align-items-center border-bottom border-secondary pb-2">
+                    <span class="text-muted small">Account Status</span>
+                    <span class="badge bg-success">Verified Active</span>
+                </div>
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <span class="text-muted small">Date Registered</span>
+                    <span class="fw-bold text-success" id="profile-joined">June 10, 2026</span>
+                </div>
+                <div class="mt-4 pt-2 border-top border-secondary">
+                    <button class="btn btn-danger w-100 fw-bold" onclick="handleLogout()">🚪 Logout</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-7 mb-4">
+            <div class="card profile-card p-4 shadow-sm border-0 h-100">
+                <h4 class="fw-bold text-success border-bottom pb-2 mb-4">📊 System Usage Statistics</h4>
+                <div class="row text-center g-3">
+                    <div class="col-6 col-sm-4">
+                        <div class="border border-secondary rounded p-3 bg-dark-50">
+                            <h6 class="text-muted text-uppercase small" style="font-size:0.8rem">Total Crops</h6>
+                            <span class="stat-badge-glow text-light" id="stat-plant-count">0</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-sm-4">
+                        <div class="border border-secondary rounded p-3 bg-dark-50">
+                            <h6 class="text-muted text-uppercase small" style="font-size:0.8rem">Active Crops</h6>
+                            <span class="stat-badge-glow text-success" id="stat-active-plant">0</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-sm-4">
+                        <div class="border border-secondary rounded p-3 bg-dark-50">
+                            <h6 class="text-muted text-uppercase small" style="font-size:0.8rem">Livestock Herds</h6>
+                            <span class="stat-badge-glow text-light" id="stat-animal-count">0</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-sm-4">
+                        <div class="border border-secondary rounded p-3 bg-dark-50">
+                            <h6 class="text-muted text-uppercase small" style="font-size:0.8rem">Active Herds</h6>
+                            <span class="stat-badge-glow text-primary" id="stat-active-animal">0</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-sm-4">
+                        <div class="border border-secondary rounded p-3 bg-dark-50">
+                            <h6 class="text-muted text-uppercase small" style="font-size:0.8rem">Disease Scans</h6>
+                            <span class="stat-badge-glow text-warning" id="stat-predictions">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="js/app.js"></script>
+<script src="js/particles.js"></script>
+</body>
+</html>

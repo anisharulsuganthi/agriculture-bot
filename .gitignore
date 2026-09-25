@@ -1,0 +1,61 @@
+# ==========================================================
+# Smart Farm / Agricultural Decision Intelligence System
+# .gitignore  (Phase 0 checkpoint safety)
+# ==========================================================
+
+# --- Virtual environments (large, machine specific) ---
+backend/venv/
+venv/
+.venv/
+env/
+
+# --- Python bytecode / build artifacts ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- Secrets: NEVER commit these ---
+.env
+backend/.env
+*.env.local
+secrets.json
+
+# --- Database: excluded so hashed credentials / farm data never reach git ---
+backend/database.db
+backend/backups/
+*.db-journal
+*.sqlite3
+
+# --- Logs / runtime scratch ---
+*.log
+backend/error.log
+backend/server.log
+backend/server_err.log
+backend/run_now.log
+backend/run_now.err.log
+
+# --- Generated RAG artifacts (Phase 4) ---
+rag/vector_store/
+rag/vector_store/**
+rag/cache/
+data/raw/
+data/processed/
+data/embeddings/
+
+# --- Node (only if a build step is ever added) ---
+node_modules/
+package-lock.json
+
+# --- OS / editor ---
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+*.swp

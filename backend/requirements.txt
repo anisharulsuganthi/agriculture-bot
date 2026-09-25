@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+python-multipart
+sqlalchemy
+transformers
+torch
+Pillow
+requests
+python-dotenv
+timm
+twilio
