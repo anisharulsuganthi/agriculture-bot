@@ -4,9 +4,14 @@ Climate intelligence (Phase 1 rewrite).
 Version 1 contained two functions, one of which (``calculate_et0``) was never
 called anywhere - dead code (PROJECT_AUDIT.md §9 B12). This module keeps the
 fungal-risk assessment (used by the API), replaces the dead ET0 stub with a
-documented implementation that the watering engine can actually use, and adds a
-full-forecast disease-risk scan so the advisory reflects the coming days instead
-of only the current reading.
+documented implementation that the advisory response can actually surface, and
+adds a full-forecast disease-risk scan so the advisory reflects the coming days
+instead of only the current reading.
+
+Scope note: ``calculate_et0`` is reported by the recommendations endpoint so the
+farmer sees the evaporative demand, but it does **not** yet feed the watering
+thresholds - those remain the explicit rules below. Wiring ET0 into irrigation
+scheduling is future work.
 
 Methodology honesty: the thresholds are the original project's assumptions,
 derived from common fungal-disease conditions. They are rule-based heuristics,

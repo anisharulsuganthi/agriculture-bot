@@ -1,5 +1,105 @@
 # PROJECT AUDIT
 
+> **STATUS UPDATE - 2026-09-25, after Phase 1 + Phase 2.**
+> The body of this document below is the **original Phase 0 audit** and is kept
+> unchanged as the evidence record of the state of the project *before* the
+> stabilisation and security work. Several of its statements are now outdated.
+> **Read section 0 first** for the verified current state and for the
+> disposition of every finding. `FEATURE_TRACEABILITY.md` carries the
+> requirement-level status.
+
+---
+
+## 0. Phase 1 + Phase 2 completion audit (current state)
+
+**Method:** static inspection of the working tree, 108 automated tests
+(`tests/`, all passing), and live verification against the running instance on
+`http://127.0.0.1:8000`.
+
+**Runtime facts (measured)**
+
+| Item | Value |
+|---|---|
+| Interpreter | `Python310\python.exe` (3.10) - the bundled `backend/venv` (3.10.9) predates the security work and lacks `bcrypt` |
+| Backend | running, 30 routes, binds `127.0.0.1:8000` |
+| Model | MobileNetV2, **38 classes**, loaded on **CUDA** |
+| Database | `backend/database.db`, 9 tables, migration version 2, `integrity_check = ok`, `foreign_key_check` clean |
+| Data preserved | 7 users, 7 plant sessions, 2 animal sessions, 10 predictions, 4 + 2 daily logs - unchanged |
+| Repository | `master`, 4 commits, working tree clean at the time of writing |
+
+### 0.1 Disposition of the Phase 0 findings
+
+| ID | Finding | Status now | Evidence |
+|---|---|---|---|
+| S1 | Identity spoofing via `X-User-Id` | **CLOSED** | `app/config.py` defaults `ALLOW_LEGACY_USER_HEADER=false`; `app/deps.py:56` only honours it when enabled. Live: `GET /api/sessions` with `X-User-Id: 1` -> **401**. `tests/test_auth.py::test_legacy_user_id_header_is_rejected` |
+| S2 | IDOR on 9 routes | **CLOSED** | Every `{id}` route loads through `get_owned_plant_session` / `get_owned_animal_session`. `tests/test_authorization.py` (21 tests) |
+| S3 | Weak SHA-256 hashing | **CLOSED** | bcrypt with upgrade-on-login (`app/security.py`). All 7 stored hashes are bcrypt. `test_legacy_account_is_upgraded_to_bcrypt_on_login` |
+| S4 | Hardcoded weather key / Gmail app password in source | **CLOSED in source** | Removed from the working tree and from `docs/archive/*`. The values remain in git history commit `cbac227` - **the credentials must be rotated**. |
+| S5 | Live LLM key in `.env`, unread by any code | **OPEN (low)** | The `GROK_API_KEY` fallback is gone; `LLM_API_KEY` is read but no LLM call exists until Phase 4. The key is unused - remove it. |
+| S6 | Wildcard CORS | **CLOSED** | Explicit origin list from config. `test_api_smoke.py::test_health` + config tests |
+| S7 | Unrestricted upload | **CLOSED** | MIME + extension allow-list, 8 MB streaming cap (413), min-dimension and pixel caps. `test_authorization.py` upload tests |
+| S8 | No rate limiting on auth routes | **CLOSED with a caveat** | `app/rate_limit.py` on register/login/forgot/reset/notify. Per-process only, and `X-Forwarded-For` is ignored unless `TRUST_PROXY_HEADERS=true`. See `LIMITATIONS.md` 5.1 |
+| S9 | Account enumeration on forgot-password | **CLOSED** | Generic response for unknown e-mail; delivery failures are logged, not returned as 500. `test_forgot_password_does_not_reveal_whether_an_account_exists` |
+| S10 | Plaintext OTP | **CLOSED** | Stored as an HMAC-SHA256 digest keyed with `JWT_SECRET`, generated with `secrets.randbelow`, with an attempt cap. `test_otp_is_never_stored_in_plaintext` |
+| S11 | No CSRF / no HTTPS | **ACCEPTED (local deployment)** | Token-based auth, loopback bind. Documented in `LIMITATIONS.md` 5.4-5.6 |
+| S12 | `/api/sessions` returned every user's data | **CLOSED** | All list routes require the authenticated user. `test_sessions_are_scoped_to_the_caller` |
+| B1 | `is_healthy` always false | **CLOSED** | Derived from label semantics (`is_healthy_label`) |
+| B2 | Severity from confidence | **CLOSED** | `severity_from_label()` maps the class name; confidence is never used |
+| B3 | No confidence floor | **CLOSED** | `status: "uncertain"` below `ML_CONFIDENCE_FLOOR`, surfaced in the UI as *Uncertain - expert review needed* |
+| B4 | Output image not annotated | **CLOSED** | A caption with the top label, score, device and timing is drawn onto the image |
+| B5 | CPU-only inference | **CLOSED** | Device auto-resolves to CUDA. Live: `device: "cuda"` |
+| B6 | Dead `___` label parsing | **CLOSED** | `advisory_service.py` replaces `grok_service.py` (shim retained) |
+| B7 | Random soil moisture | **CLOSED** | Deterministic estimate, `source: "estimated"`, stable across identical calls (`test_recommendations_are_stable_and_explain_themselves`) |
+| B8 | Notify forced soil moisture 50 | **CLOSED** | The notify route now derives moisture from the same log history as the dashboard |
+| B9 | `rain_probability_24h` hardcoded 0 | **CLOSED** | Derived from the 3-hourly forecast; solar radiation reported as `None` instead of a random number |
+| B10 | Fabricated market data | **CLOSED (labelled)** | Isolated in `simulation_service.py`, deterministic, `data_source: "simulated"`, badged in the UI, warning banner on the market view |
+| B11 | Case-sensitive crop lookup | **CLOSED** | `app/crop_vocab.py` normalises on write; the fallback row states `fallback_applied` and `requested_crop` |
+| B12 | Dead `calculate_et0` | **CLOSED (surfaced, not wired)** | Returned by the advisory endpoint with its `method` and `limitations`. It still does not drive the watering thresholds - stated in the module docstring and `LIMITATIONS.md` 1.4 |
+| B13 | Write-only `recommendation_logs` | **OPEN (by design)** | Still written, never read. `LIMITATIONS.md` 3.5 |
+| B14 | Unused `twilio`, unread `.env` | **CLOSED** | `twilio` and `timm` removed; `requirements.txt` pinned to the verified versions; `load_dotenv` active through `app/config.py` |
+| B15 | Deprecated startup hook, duplicate imports | **CLOSED** | `lifespan` context manager; imports deduplicated |
+| B16 | No request/error logging | **CLOSED** | `app/logging_config.py` with rotation, secret redaction, latency header, slow-request and 5xx logging |
+| B17 | Stale/duplicate artefacts | **CLOSED** | `index_backup.html` archived, `add_js.py` and the duplicate root `models/` copy deleted (verified byte-identical to the copy the code loads), stale logs removed |
+| D1 | Legacy `NULL user_id` rows | **CLOSED** | Migration 001; 0 orphans remain |
+| D2 | Inconsistent crop casing | **CLOSED** | Only `Tomato` and `Potato` remain; normalisation enforced on write |
+| D3 | Predictions without a timestamp | **CLOSED with a caveat** | Column added. The 10 legacy rows carry the migration timestamp, so they are unusable as a time series (`LIMITATIONS.md` 3.2) |
+| D4 | Mixed TEXT/DateTime columns | **OPEN** | Preserved deliberately: the Version-1 data is stored that way. `to_date_key()` normalises reads (`LIMITATIONS.md` 3.3) |
+| D5 | Unvalidated `disease_predictions.user_id` | **CLOSED** | Set from the authenticated user only |
+| D6 | Duplicate/typo accounts | **OPEN (data)** | Demo data; not auto-deleted because no data may be destroyed |
+| D7 | Unbounded `recommendation_logs` growth | **OPEN** | No read path, no retention (`LIMITATIONS.md` 3.5) |
+| D8 | No harvest date/loss/quality fields | **OPEN** | `ended_at` was added, but yield-prediction ground truth still cannot be assembled (`LIMITATIONS.md` 3.4) |
+| D9 | No FK on `sessions.user_id` | **CLOSED** | Migration 002 rebuilt the three tables; `PRAGMA foreign_key_check` is clean. `daily_logs` / `recommendation_logs` remain FK-free by design |
+| D10 | Trivially guessable demo passwords | **MITIGATED** | Hashed with bcrypt; `PASSWORD_MIN_LENGTH` raised to 8. The demo accounts themselves remain - do not cite this data as a user study |
+
+### 0.2 New findings introduced and fixed during Phase 1-2
+
+| Finding | Fix |
+|---|---|
+| `POST /api/sessions/{id}/notify` returned `null` (no `return` statement) and accepted **any** recipient - an open mail relay | Always sends to the authenticated account's address; returns a payload; 502/503 on failure; rate limited |
+| Harvest and livestock close-out could be replayed, silently overwriting a recorded result | 409 on a second close |
+| Stored/DOM XSS: plot names, session names, notes, medicine names and cure steps were interpolated into `innerHTML` and into single-quoted inline `onclick` handlers | `escapeHtml()` on every API-derived value, `textContent` for lists, `data-*` attributes plus one delegated click handler |
+| 35 hard-coded `http://localhost:8000` literals in `app.js` | `apiUrl()` in `js/api.js`; the SPA also no longer sends `X-User-Id` |
+| UI claimed "YOLOv8", "Live" market prices and "24/7 climate monitoring" | Corrected to MobileNetV2 (38 classes), *simulated* market data with a warning banner, 5-day forecast |
+| Simulated weather and low-confidence predictions were not labelled in the UI | Provenance badge, moisture-source note, *Uncertain* badge, model metadata line |
+| `forgot-password` returned 500 when mail delivery failed, re-enabling account enumeration | Failure logged only; the response stays generic |
+| `X-Forwarded-For` was trusted unconditionally, so the rate limiter was bypassable | Only trusted when `TRUST_PROXY_HEADERS=true` |
+| Model inference ran inside the event loop | Moved to the thread pool via `run_in_threadpool` |
+| `/api/system/info` exposed absolute database and model paths | Removed from the public settings block; `model_info()` returns the folder name only |
+| `Settings` read the environment at import time, so configuration could not be tested | Converted to an instantiable class; `validate_startup()` added |
+| bcrypt's 72-byte limit was unenforced, so a long password could raise a 500 | Rejected at validation with a clear message |
+| The declared foreign keys and two indexes did not exist in the live database (`ALTER TABLE ADD COLUMN` cannot add a constraint) | Migration 002 rebuilds the three tables; verified on a copy first: 7/2/10 rows preserved, `foreign_key_check` clean |
+
+### 0.3 Still open
+
+- Credentials exposed in git history must be **rotated** (outside the repository).
+- S5, B13, D4, D6, D7, D8 remain open by design and are documented in `LIMITATIONS.md`.
+- No evaluation of the disease model, no latency study, no RAG layer - Phases 3-10.
+- The original paper, First Review PPT, HarvestIQ PRD and Review Circular are not in the repository.
+
+---
+
+# ORIGINAL PHASE 0 AUDIT (state before Phase 1 + Phase 2)
+
 **Project (research identity — unchanged):**
 *An AI-Powered Agricultural Decision Intelligence System for Precision Farming*
 

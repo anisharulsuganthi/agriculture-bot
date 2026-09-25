@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import base64
 import io
+import json
 import os
 import sys
 import time
@@ -126,13 +127,32 @@ def load_or_download_model():
 
 
 def model_info() -> Dict[str, Any]:
+    """
+    Model metadata for logging and the system endpoint.
+
+    Only the leaf folder name is exposed: the absolute path describes the host
+    filesystem layout and has no business being readable over HTTP.
+    """
     return {
-        "model_dir": str(settings.model_dir),
+        "model_name": settings.model_dir.name,
         "device": _model_device,
         "top_k": settings.ml_top_k,
         "confidence_floor": settings.ml_confidence_floor,
+        "num_labels": _num_labels(),
         "loaded": detector is not None,
     }
+
+
+def _num_labels() -> Optional[int]:
+    """Number of output classes, read from the model config when available."""
+    config_file = settings.model_dir / "config.json"
+    try:
+        with open(config_file, "r", encoding="utf-8") as handle:
+            config = json.load(handle)
+        id2label = config.get("id2label") or {}
+        return len(id2label) or None
+    except (OSError, ValueError, TypeError):
+        return None
 
 
 def severity_from_label(label: str) -> str:

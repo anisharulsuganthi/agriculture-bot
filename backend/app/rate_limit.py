@@ -25,9 +25,18 @@ _hits: Dict[Tuple[str, str], Deque[float]] = defaultdict(deque)
 
 
 def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """
+    Resolve the caller IP.
+
+    ``X-Forwarded-For`` is client controlled, so honouring it unconditionally
+    would let any caller rotate their identity and bypass every limit. It is
+    only read when the operator declares the app runs behind a trusted proxy
+    (``TRUST_PROXY_HEADERS=true``).
+    """
+    if settings.trust_proxy_headers:
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
 

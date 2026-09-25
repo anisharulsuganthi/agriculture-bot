@@ -24,17 +24,20 @@ See API_DOCUMENTATION.md for the endpoint reference.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
+import secrets
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from advisory_service import get_cure_for_disease
 from app.config import settings
@@ -43,6 +46,7 @@ from app.deps import get_current_user, get_owned_animal_session, get_owned_plant
 from app.logging_config import get_logger, setup_logging
 from app.rate_limit import rate_limit
 from app.security import (
+    bearer_token,
     create_access_token,
     hash_password,
     needs_rehash,
@@ -187,15 +191,15 @@ class AnimalSessionClose(BaseModel):
 
 
 class NotifyRequest(BaseModel):
-    email: str = Field(..., min_length=5, max_length=100)
+    """
+    Advisory email request.
 
-    @field_validator("email")
-    @classmethod
-    def _email(cls, value: str) -> str:
-        value = value.strip().lower()
-        if "@" not in value:
-            raise ValueError("Enter a valid email address.")
-        return value
+    ``email`` is optional and **advisory only**: the message is always sent to
+    the authenticated account's own address. Version 1 accepted any recipient,
+    which turned the endpoint into an open relay (PROJECT_AUDIT.md §10).
+    """
+
+    email: Optional[str] = Field(None, max_length=100)
 
 
 # ==========================================================================
@@ -219,6 +223,9 @@ async def lifespan(_: FastAPI):
             api_logger.error("ML model warm-up failed (disease endpoint retries lazily): %s", exc)
 
     api_logger.info("%s v%s started (env=%s)", settings.app_name, settings.app_version, settings.app_env)
+    api_logger.info("API bound to %s:%s", settings.api_host, settings.api_port)
+    for problem in settings.validate_startup():
+        api_logger.warning("Configuration: %s", problem)
     yield
     api_logger.info("Application shutting down")
 
@@ -310,11 +317,24 @@ def _user_payload(user: User) -> Dict[str, Any]:
 
 
 def _otp_digest(user_id: int, otp: str) -> str:
-    """OTP is stored as a hash, never in plaintext (Phase 2 hardening)."""
-    return hashlib.sha256(f"smartfarm:{user_id}:{otp}".encode("utf-8")).hexdigest()
+    """
+    OTP digest.
+
+    The code is never stored: only a keyed digest is persisted, so a leaked
+    database row cannot be replayed against ``/api/auth/reset-password``. The
+    key is the deployment's JWT secret, so rotating it invalidates every
+    outstanding OTP.
+    """
+    message = f"smartfarm-otp:{user_id}:{otp}".encode("utf-8")
+    return hmac.new(settings.jwt_secret.encode("utf-8"), message, hashlib.sha256).hexdigest()
 
 
-@app.post("/api/auth/register", tags=["Authentication"], dependencies=[Depends(rate_limit("register", 20))])
+def _generate_otp(length: int) -> str:
+    """Cryptographically strong numeric OTP (``random`` is not a CSPRNG)."""
+    return "".join(str(secrets.randbelow(10)) for _ in range(length))
+
+
+@app.post("/api/auth/register", tags=["Authentication"], dependencies=[Depends(rate_limit("register", settings.register_rate_limit))])
 def register_endpoint(user_data: UserRegister, db: Session = Depends(get_db)):
     password_error = validate_password_strength(user_data.password)
     if password_error:
@@ -342,7 +362,7 @@ def register_endpoint(user_data: UserRegister, db: Session = Depends(get_db)):
     }
 
 
-@app.post("/api/auth/login", tags=["Authentication"], dependencies=[Depends(rate_limit("login", 10))])
+@app.post("/api/auth/login", tags=["Authentication"], dependencies=[Depends(rate_limit("login", settings.login_rate_limit))])
 def login_endpoint(user_data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user or not verify_password(user_data.password, user.hashed_password):
@@ -365,22 +385,37 @@ def login_endpoint(user_data: UserLogin, db: Session = Depends(get_db)):
 
 
 @app.get("/api/auth/me", tags=["Authentication"])
-def me_endpoint(current_user: User = Depends(get_current_user)):
-    return {"status": "success", "user": _user_payload(current_user), "auth_method": "bearer-token"}
+def me_endpoint(
+    current_user: User = Depends(get_current_user),
+    authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
+):
+    """Identity of the caller, with the credential scheme that was actually used."""
+    if bearer_token(authorization):
+        auth_method = "bearer-token"
+    elif x_user_id and settings.allow_legacy_user_header:
+        auth_method = "legacy-x-user-id"
+    else:
+        auth_method = "unknown"
+    return {"status": "success", "user": _user_payload(current_user), "auth_method": auth_method}
 
 
-@app.post("/api/auth/forgot-password", tags=["Authentication"], dependencies=[Depends(rate_limit("forgot", 5))])
+@app.post("/api/auth/forgot-password", tags=["Authentication"], dependencies=[Depends(rate_limit("forgot", settings.forgot_rate_limit))])
 def forgot_password_endpoint(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Always answers with the same generic message.
+
+    A delivery failure is logged but never surfaced as a 500: returning an error
+    only for real accounts re-enabled account enumeration in misconfigured
+    deployments (PROJECT_AUDIT.md S9 follow-up).
+    """
     generic = {"status": "success", "message": "If that email is registered, a reset code has been sent."}
     user = db.query(User).filter(User.email == request.email).first()
     if not user:
-        # Generic response prevents account enumeration (PROJECT_AUDIT.md §10 S9)
         api_logger.info("Forgot-password requested for an unknown email (response kept generic)")
         return generic
 
-    import random
-
-    otp = "".join(str(random.randint(0, 9)) for _ in range(settings.otp_length))
+    otp = _generate_otp(settings.otp_length)
     user.otp = _otp_digest(user.id, otp)
     user.otp_expiry = datetime.utcnow() + timedelta(minutes=settings.otp_expiry_minutes)
     user.otp_attempts = 0
@@ -388,11 +423,11 @@ def forgot_password_endpoint(request: ForgotPasswordRequest, db: Session = Depen
 
     result = send_otp_email(user.email, otp)
     if result.get("status") == "error":
-        raise HTTPException(status_code=500, detail=result.get("message", "Could not send the reset email."))
+        api_logger.error("OTP delivery failed for user id=%s: %s", user.id, result.get("message"))
     return generic
 
 
-@app.post("/api/auth/reset-password", tags=["Authentication"], dependencies=[Depends(rate_limit("reset", 10))])
+@app.post("/api/auth/reset-password", tags=["Authentication"], dependencies=[Depends(rate_limit("reset", settings.reset_rate_limit))])
 def reset_password_endpoint(request: ResetPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request.email).first()
     if not user or not user.otp:
@@ -407,6 +442,7 @@ def reset_password_endpoint(request: ResetPasswordRequest, db: Session = Depends
     if user.otp != _otp_digest(user.id, request.otp):
         user.otp_attempts = (user.otp_attempts or 0) + 1
         db.commit()
+        api_logger.warning("Incorrect OTP for user id=%s (attempt %s)", user.id, user.otp_attempts)
         raise HTTPException(status_code=400, detail="Incorrect reset code.")
 
     password_error = validate_password_strength(request.new_password)
@@ -496,7 +532,9 @@ async def predict_disease_endpoint(
     image_bytes = await _read_upload_limited(image)
 
     try:
-        result = predict_image(image_bytes)
+        # Inference is CPU/GPU bound: run it in the worker thread pool so the
+        # event loop keeps serving other requests during a prediction.
+        result = await run_in_threadpool(predict_image, image_bytes)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:  # noqa: BLE001 - model/runtime failure
@@ -706,6 +744,12 @@ def harvest_session(
 ):
     """Close a plant session with the realised yield and market price."""
     session = get_owned_plant_session(session_id, current_user, db)
+    if not session.is_active:
+        # Version 1 silently overwrote a recorded harvest on every repeat call.
+        raise HTTPException(
+            status_code=409,
+            detail="This session was already harvested. Create a new session to record another harvest.",
+        )
     session.is_active = False
     session.harvest_yield = harvest_data.harvest_yield
     session.market_price = harvest_data.market_price
@@ -847,15 +891,27 @@ def get_session_recommendations(
     }
 
 
-@app.post("/api/sessions/{session_id}/notify", tags=["Advisory"])
+@app.post("/api/sessions/{session_id}/notify", tags=["Advisory"], dependencies=[Depends(rate_limit("notify", settings.notify_rate_limit))])
 def send_session_notification(
     session_id: int,
     request: NotifyRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Email the current advisory for a session (ownership enforced)."""
+    """
+    Email the current advisory for a session to the caller's own account.
+
+    Fixes three Version-1 defects: the handler returned ``null`` (no ``return``),
+    the recipient was attacker controlled, and the soil-moisture estimate was
+    forced to "not watered today", so the email could contradict the dashboard.
+    """
     session = get_owned_plant_session(session_id, current_user, db)
+    recipient = (current_user.email or "").strip().lower()
+    if not recipient:
+        raise HTTPException(status_code=400, detail="This account has no email address to send the advisory to.")
+
+    if not email_configured():
+        raise HTTPException(status_code=503, detail="Email delivery is not configured on this server.")
 
     try:
         current_weather = get_current_weather(session.location)
@@ -864,11 +920,25 @@ def send_session_notification(
         raise HTTPException(status_code=503, detail=str(exc))
 
     forecast_24h = forecast_days[0] if forecast_days else {"rain_probability": None}
+
+    # Same inputs as /recommendations so both surfaces agree.
+    today_key = datetime.now().date().isoformat()
+    logs = db.query(DailyLog).filter(DailyLog.session_id == session_id).all()
+    watered_today = any(to_date_key(log.date) == today_key and log.watered for log in logs)
+    last_dates = sorted((to_date_key(log.date) for log in logs), reverse=True)
+    days_since_watering = 1
+    if last_dates:
+        try:
+            days_since_watering = max(1, (datetime.now().date() - datetime.fromisoformat(last_dates[0]).date()).days + 1)
+        except ValueError:
+            days_since_watering = 1
+
     moisture = estimate_soil_moisture(
         soil_type=session.soil_type,
-        watered_today=False,
+        watered_today=watered_today,
         rain_probability=forecast_24h.get("rain_probability"),
         temperature=current_weather.get("temperature") or 25,
+        days_since_watering=days_since_watering,
     )
     recommendations = {
         "watering": generate_watering_recommendation(
@@ -885,9 +955,19 @@ def send_session_notification(
     }
 
     message = format_alert_message(session.plot_name, session.crop_type, recommendations)
-    result = send_email_alert(request.email, message)
+    result = send_email_alert(recipient, message)
     if result.get("status") == "error":
-        raise HTTPException(status_code=500, detail=result.get("message", "Email delivery failed."))
+        api_logger.error("Advisory email failed for user %s: %s", current_user.id, result.get("message"))
+        raise HTTPException(status_code=502, detail=result.get("message", "Email delivery failed."))
+
+    api_logger.info("Advisory emailed to the account address for session %s (user %s)", session_id, current_user.id)
+    return {
+        "status": "success",
+        "message": "Advisory sent to your account email address.",
+        "recipient": recipient,
+        "advice": recommendations,
+    }
+
 # ==========================================================================
 # Plant farm dashboards
 # ==========================================================================
@@ -970,6 +1050,9 @@ def get_dashboard_analytics(
             if log.watered:
                 bucket["water_events"] += 1
             if log.fertilized:
+                # Daily-log fertiliser is part of the investment, exactly as in
+                # /dashboard/summary (Version 1 counted it in one place only, so
+                # the two dashboards disagreed).
                 cost = (log.fertilizer_amount or 0) * (session.cost_per_fertilizer or 0)
                 fert_cost += cost
                 bucket["fert_cost"] += cost
@@ -1111,6 +1194,11 @@ def close_animal_session(
     db: Session = Depends(get_db),
 ):
     session = get_owned_animal_session(session_id, current_user, db)
+    if not session.is_active:
+        raise HTTPException(
+            status_code=409,
+            detail="This animal session is already closed. Create a new session to record another close-out.",
+        )
     session.is_active = False
     session.animals_sold = close_data.animals_sold
     session.sell_price_per_animal = close_data.sell_price_per_animal

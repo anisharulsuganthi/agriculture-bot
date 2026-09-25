@@ -46,11 +46,20 @@ SOIL_RETENTION = {"sandy": 0.6, "loam": 1.0, "clay": 1.35, "black": 1.3, "red": 
 
 
 def get_crop_requirement(crop_type: str) -> Dict[str, Any]:
-    """Requirement row for a crop, with a reported fallback (never silent)."""
+    """
+    Requirement row for a crop.
+
+    An unknown crop falls back to the default row, but the returned dict now
+    states the requested crop and whether the fallback was applied, so a caller
+    can never present Tomato advice for an unsupported crop as if it were
+    specific (``is_crop_supported`` reports the same fact at the API level).
+    """
     canonical = normalize_crop_type(crop_type)
-    if canonical in CROP_REQUIREMENTS:
-        return CROP_REQUIREMENTS[canonical]
-    return CROP_REQUIREMENTS[DEFAULT_REQUIREMENT_KEY]
+    known = canonical in CROP_REQUIREMENTS
+    requirement = dict(CROP_REQUIREMENTS[canonical] if known else CROP_REQUIREMENTS[DEFAULT_REQUIREMENT_KEY])
+    requirement["requested_crop"] = canonical
+    requirement["fallback_applied"] = not known
+    return requirement
 
 
 def is_crop_supported(crop_type: str) -> bool:

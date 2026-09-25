@@ -29,6 +29,7 @@ from sqlalchemy import (
     String,
     Text,
     create_engine,
+    event,
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -42,6 +43,22 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
     echo=settings.database_echo,
 )
+
+if settings.database_enable_foreign_keys:
+
+    @event.listens_for(engine, "connect")
+    def _enable_sqlite_foreign_keys(dbapi_connection, _connection_record):
+        """
+        SQLite ignores FOREIGN KEY clauses unless enforcement is switched on
+        per connection, so the ORM declarations were inert in Version 1.
+        """
+        try:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+        except Exception:  # pragma: no cover - non-sqlite driver
+            pass
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
@@ -189,46 +206,11 @@ class User(Base):
     name = Column(String(100))
     email = Column(String(100), unique=True, index=True)
     hashed_password = Column(String(200))
-    otp = Column(String(200), nullable=True)          # stored as a hash (Phase 2)
+    otp = Column(String(200), nullable=True)          # stored as a keyed digest (Phase 2)
     otp_expiry = Column(DateTime, nullable=True)
     otp_attempts = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-def run_migrations():
-    import sqlite3
-    db_path = "./database.db"
-    if not os.path.exists(db_path) and os.path.exists("backend/database.db"):
-        db_path = "backend/database.db"
-    
-    try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Check and add user_id to farming_sessions
-        try:
-            cursor.execute("SELECT user_id FROM farming_sessions LIMIT 1")
-        except sqlite3.OperationalError:
-            cursor.execute("ALTER TABLE farming_sessions ADD COLUMN user_id INTEGER DEFAULT NULL")
-            print("Migration: Added user_id to farming_sessions")
-            
-        # Check and add user_id to animal_sessions
-        try:
-            cursor.execute("SELECT user_id FROM animal_sessions LIMIT 1")
-        except sqlite3.OperationalError:
-            cursor.execute("ALTER TABLE animal_sessions ADD COLUMN user_id INTEGER DEFAULT NULL")
-            print("Migration: Added user_id to animal_sessions")
-            
-        # Check and add user_id to disease_predictions
-        try:
-            cursor.execute("SELECT user_id FROM disease_predictions LIMIT 1")
-        except sqlite3.OperationalError:
-            cursor.execute("ALTER TABLE disease_predictions ADD COLUMN user_id INTEGER DEFAULT NULL")
-            print("Migration: Added user_id to disease_predictions")
-            
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"Migration error: {e}")
 
 def init_db() -> dict:
     """

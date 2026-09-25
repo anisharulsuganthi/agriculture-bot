@@ -52,12 +52,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showAlert(message, type) {
-        alertContainer.innerHTML = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        `;
+        // The message may originate from an API error, so it is inserted as text.
+        const wrapper = document.createElement('div');
+        wrapper.className = `alert alert-${type} alert-dismissible fade show`;
+        wrapper.setAttribute('role', 'alert');
+        const text = document.createElement('span');
+        text.textContent = message;
+        wrapper.appendChild(text);
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'btn-close';
+        close.setAttribute('data-bs-dismiss', 'alert');
+        close.setAttribute('aria-label', 'Close');
+        wrapper.appendChild(close);
+        alertContainer.innerHTML = '';
+        alertContainer.appendChild(wrapper);
     }
 
     predictionForm.addEventListener('submit', async (e) => {
@@ -72,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('image', selectedFile);
 
         try {
-            const response = await fetch('http://localhost:8000/api/predict/disease', {
+            const response = await fetch(apiUrl('/api/predict/disease'), {
                 method: 'POST',
                 body: formData
             });
@@ -111,10 +120,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (prediction.detections && prediction.detections.length > 0) {
             prediction.detections.forEach(det => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="fw-bold">${det.label}</td>
-                    <td>${det.score}%</td>
-                `;
+                const labelCell = document.createElement('td');
+                labelCell.className = 'fw-bold';
+                labelCell.textContent = det.label;
+                const scoreCell = document.createElement('td');
+                scoreCell.textContent = `${det.score}%`;
+                tr.appendChild(labelCell);
+                tr.appendChild(scoreCell);
                 detBody.appendChild(tr);
             });
         } else {
@@ -124,30 +136,59 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('res-disease-name').textContent = prediction.disease_name;
         document.getElementById('res-confidence').textContent = `${prediction.confidence_score}%`;
         
+        // The backend flags results below the confidence floor as "uncertain".
+        // Showing them as a confirmed infection would be a false claim, so the
+        // badge reflects the model status instead of only the healthy flag.
+        const uncertain = prediction.status === 'uncertain' || prediction.confident === false;
         const healthyBadge = document.getElementById('res-healthy');
-        if (prediction.is_healthy) {
+        if (uncertain) {
+            healthyBadge.className = 'badge bg-warning text-dark';
+            healthyBadge.textContent = '⚠️ Uncertain - expert review needed';
+        } else if (prediction.is_healthy) {
             healthyBadge.className = 'badge bg-success';
-            healthyBadge.innerHTML = '✅ Healthy';
+            healthyBadge.textContent = '✅ Healthy';
         } else {
             healthyBadge.className = 'badge bg-danger';
-            healthyBadge.innerHTML = '❌ Infected';
+            healthyBadge.textContent = '❌ Infected';
         }
 
         const severityBadge = document.getElementById('res-severity');
-        severityBadge.textContent = `Severity: ${prediction.severity}`;
-        if (prediction.severity === 'Severe') severityBadge.className = 'badge bg-danger';
+        severityBadge.textContent = uncertain
+            ? `Severity: not assessed (below the ${prediction.confidence_floor}% confidence floor)`
+            : `Severity: ${prediction.severity}`;
+        if (uncertain) severityBadge.className = 'badge bg-secondary';
+        else if (prediction.severity === 'Severe' || prediction.severity === 'High') severityBadge.className = 'badge bg-danger';
         else if (prediction.severity === 'Moderate') severityBadge.className = 'badge bg-warning text-dark';
         else severityBadge.className = 'badge bg-info text-dark';
 
+        // Surface the model's own notice (low-confidence guidance) to the farmer.
+        const noticeHost = document.getElementById('res-notice');
+        if (noticeHost) {
+            noticeHost.textContent = data.notice || '';
+            noticeHost.classList.toggle('d-none', !data.notice);
+        }
+
+        const metaHost = document.getElementById('res-model-meta');
+        if (metaHost) {
+            metaHost.textContent =
+                `MobileNetV2 classifier · ${prediction.detections ? prediction.detections.length : 0} ranked classes · ` +
+                `${prediction.device} · ${prediction.inference_ms} ms · analysed ${prediction.created_at || ''}`;
+        }
+
         const tbody = document.getElementById('cure-table-body');
         tbody.innerHTML = '';
-        cure.forEach(c => {
+        (cure || []).forEach(c => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td class="fw-bold">${c.step}</td>
-                <td>${c.action}</td>
-                <td>${c.details}</td>
-            `;
+            const stepCell = document.createElement('td');
+            stepCell.className = 'fw-bold';
+            stepCell.textContent = c.step;
+            const actionCell = document.createElement('td');
+            actionCell.textContent = c.action;
+            const detailsCell = document.createElement('td');
+            detailsCell.textContent = c.details;
+            tr.appendChild(stepCell);
+            tr.appendChild(actionCell);
+            tr.appendChild(detailsCell);
             tbody.appendChild(tr);
         });
     }
@@ -188,7 +229,7 @@ window.closeAuthView = function() {
 
 // Climate Dashboard Navigation Logic
 window.showView = function(viewName) {
-    const user = JSON.parse(localStorage.getItem('smartfarm_user') || 'null');
+    const user = getStoredUser();
     const authView = document.getElementById('auth-view');
     const mainNavbar = document.getElementById('main-navbar');
     
@@ -326,8 +367,8 @@ window.loadClimateView = async function() {
     // Fetch all sessions (plants and animals)
     try {
         const [plantsRes, animalsRes] = await Promise.all([
-            fetch('http://localhost:8000/api/sessions'),
-            fetch('http://localhost:8000/api/animals')
+            fetch(apiUrl('/api/sessions')),
+            fetch(apiUrl('/api/animals'))
         ]);
         
         const selector = document.getElementById('climate-session-selector');
@@ -342,7 +383,11 @@ window.loadClimateView = async function() {
                 optGroup.label = "🌾 Plant Sessions";
                 plants.forEach(s => {
                     const status = s.is_active ? '(Active)' : '(Ended)';
-                    optGroup.innerHTML += `<option value="plant_${s.id}">${s.plot_name} (${s.crop_type}) ${status}</option>`;
+                    // textContent, never innerHTML: plot_name is user supplied.
+                    const option = document.createElement('option');
+                    option.value = `plant_${s.id}`;
+                    option.textContent = `${s.plot_name} (${s.crop_type}) ${status}`;
+                    optGroup.appendChild(option);
                 });
                 selector.appendChild(optGroup);
                 hasSessions = true;
@@ -356,7 +401,10 @@ window.loadClimateView = async function() {
                 optGroup.label = "🐾 Animal Sessions";
                 animals.forEach(s => {
                     const status = s.is_active ? '(Active)' : '(Ended)';
-                    optGroup.innerHTML += `<option value="animal_${s.id}">${s.session_name} (${s.animal_type}) ${status}</option>`;
+                    const option = document.createElement('option');
+                    option.value = `animal_${s.id}`;
+                    option.textContent = `${s.session_name} (${s.animal_type}) ${status}`;
+                    optGroup.appendChild(option);
                 });
                 selector.appendChild(optGroup);
                 hasSessions = true;
@@ -401,8 +449,8 @@ window.fetchSessionInfoAndClimate = async function() {
     try {
         // Find session details
         const endpoint = window.activeSessionType === 'plant' 
-            ? `http://localhost:8000/api/sessions` 
-            : `http://localhost:8000/api/animals`;
+            ? apiUrl(`/api/sessions`) 
+            : apiUrl(`/api/animals`);
             
         const res = await fetch(endpoint);
         const sessions = await res.json();
@@ -411,41 +459,41 @@ window.fetchSessionInfoAndClimate = async function() {
         if (session) {
             if (window.activeSessionType === 'plant') {
                 document.getElementById('session-info').innerHTML = `
-                    <div><strong>Crop:</strong> ${session.crop_type} (${session.plot_name})</div>
-                    <div><strong>Soil:</strong> ${session.soil_type}</div>
-                    <div><strong>Location:</strong> ${session.location}</div>
+                    <div><strong>Crop:</strong> ${escapeHtml(session.crop_type)} (${escapeHtml(session.plot_name)})</div>
+                    <div><strong>Soil:</strong> ${escapeHtml(session.soil_type)}</div>
+                    <div><strong>Location:</strong> ${escapeHtml(session.location)}</div>
                 `;
             } else {
                 document.getElementById('session-info').innerHTML = `
-                    <div><strong>Animal:</strong> ${session.animal_type} (${session.session_name})</div>
-                    <div><strong>Count:</strong> ${session.animal_count}</div>
+                    <div><strong>Animal:</strong> ${escapeHtml(session.animal_type)} (${escapeHtml(session.session_name)})</div>
+                    <div><strong>Count:</strong> ${escapeHtml(session.animal_count)}</div>
                 `;
             }
         }
         
         // Fetch recommendations (currently backend only supports plant recommendations, but we can reuse it for basic weather)
         // Note: The backend /api/sessions/{id}/recommendations specifically queries FarmingSession.
-        // If it's an animal session, we should just fetch weather, but for now we'll mock it or handle it in JS.
+        // If it's an animal session, the backend exposes no advisory endpoint, so the
+        // cards below show STATIC GUIDANCE - not a computed assessment.
         if (window.activeSessionType === 'plant') {
             await fetchClimateData();
         } else {
-            // Mock weather for animal session since backend endpoint doesn't support animals
             document.getElementById('weather-info').innerHTML = `
-                <h3 class="fw-bold">28.5°C</h3>
-                <p class="mb-1 text-muted">Humidity: 65%</p>
-                <p class="mb-0 text-muted">Good conditions for livestock.</p>
+                <span class="badge bg-secondary mb-2">Not available for livestock sessions</span>
+                <p class="mb-1 text-muted">Weather is currently fetched for plant sessions only.</p>
             `;
             document.getElementById('disease-risk-info').innerHTML = `
-                <span class="badge bg-success fs-6 mb-2">Low Risk</span>
-                <p class="mb-1 fw-bold">No imminent viral threats detected in your region.</p>
+                <span class="badge bg-secondary fs-6 mb-2">Static guidance</span>
+                <p class="mb-1 fw-bold">No disease-risk model is applied to livestock sessions.</p>
+                <p class="mb-0 text-muted">Consult a veterinary officer for animal health decisions.</p>
             `;
             document.getElementById('watering-rec').innerHTML = `
                 <h5 class="fw-bold text-dark">Ensure constant clean water supply</h5>
-                <p class="mb-2">⚠️ Animals drink more during warmer parts of the day.</p>
+                <p class="mb-2">⚠️ General husbandry guidance (static, not a computed recommendation).</p>
             `;
             document.getElementById('fertilizing-rec').innerHTML = `
                 <h5 class="fw-bold text-dark">Ensure proper feeding schedule</h5>
-                <p class="mb-2">⚠️ Standard feeding recommended.</p>
+                <p class="mb-2">⚠️ General husbandry guidance (static, not a computed recommendation).</p>
             `;
         }
     } catch (e) {
@@ -461,39 +509,50 @@ window.fetchClimateData = async function() {
     if (!window.activeSessionId) return;
 
     try {
-        const res = await fetch(`http://localhost:8000/api/sessions/${window.activeSessionId}/recommendations`);
+        const res = await fetch(apiUrl(`/api/sessions/${window.activeSessionId}/recommendations`));
         if (!res.ok) throw new Error("Failed to fetch recommendations");
         const data = await res.json();
         
-        // Populate Weather
+        // Populate Weather. The provenance badge makes it explicit whether the
+        // values came from the weather provider or from the labelled fallback.
+        const weather = data.current_weather || {};
+        const simulated = weather.simulated === true;
+        const sourceBadge = simulated
+            ? '<span class="badge bg-warning text-dark">Simulated data (weather provider unavailable)</span>'
+            : '<span class="badge bg-success">Live weather</span>';
+        const moistureDetail = data.soil_moisture_detail || {};
+        const moistureNote = moistureDetail.source
+            ? ` <span class="text-muted" title="No soil sensor is deployed; this is a documented estimate">(${escapeHtml(moistureDetail.source)})</span>`
+            : '';
         document.getElementById('weather-info').innerHTML = `
-            <h3 class="fw-bold">${data.current_weather.temperature}°C</h3>
-            <p class="mb-1 text-muted">Humidity: ${data.current_weather.humidity}%</p>
-            <p class="mb-0 text-muted">Soil Moisture: ${data.soil_moisture}%</p>
+            <div class="mb-1">${sourceBadge}</div>
+            <h3 class="fw-bold">${escapeHtml(weather.temperature)}°C</h3>
+            <p class="mb-1 text-muted">Humidity: ${escapeHtml(weather.humidity)}%</p>
+            <p class="mb-0 text-muted">Soil Moisture: ${escapeHtml(data.soil_moisture)}%${moistureNote}</p>
         `;
 
         // Populate Disease Risk
         const riskLevel = data.disease_risk.risk_level;
         let riskColor = riskLevel === 'High' ? 'danger' : (riskLevel === 'Medium' ? 'warning' : 'success');
         document.getElementById('disease-risk-info').innerHTML = `
-            <span class="badge bg-${riskColor} fs-6 mb-2">${riskLevel} Risk</span>
-            <p class="mb-1 fw-bold">${data.disease_risk.message}</p>
-            <p class="mb-0 text-muted">${data.disease_risk.action}</p>
+            <span class="badge bg-${riskColor} fs-6 mb-2">${escapeHtml(riskLevel)} Risk</span>
+            <p class="mb-1 fw-bold">${escapeHtml(data.disease_risk.message)}</p>
+            <p class="mb-0 text-muted">${escapeHtml(data.disease_risk.action)}</p>
         `;
 
         // Populate Watering
         document.getElementById('watering-rec').innerHTML = `
-            <h5 class="fw-bold text-dark">${data.watering.recommendation}</h5>
-            <p class="mb-2">⚠️ ${data.watering.reason}</p>
-            <span class="badge bg-light text-dark border">📅 Next scheduled: ${data.watering.next_scheduled}</span>
+            <h5 class="fw-bold text-dark">${escapeHtml(data.watering.recommendation)}</h5>
+            <p class="mb-2">⚠️ ${escapeHtml(data.watering.reason)}</p>
+            <span class="badge bg-light text-dark border">📅 Next scheduled: ${escapeHtml(data.watering.next_scheduled)}</span>
         `;
 
         // Populate Fertilizing
         document.getElementById('fertilizing-rec').innerHTML = `
-            <h5 class="fw-bold text-dark">${data.fertilizing.recommendation}</h5>
-            <p class="mb-2">📦 Type: ${data.fertilizing.fertilizer_type}</p>
-            <p class="mb-2">⚠️ ${data.fertilizing.reason}</p>
-            <span class="badge bg-light text-dark border">📅 Next scheduled: ${data.fertilizing.next_scheduled}</span>
+            <h5 class="fw-bold text-dark">${escapeHtml(data.fertilizing.recommendation)}</h5>
+            <p class="mb-2">📦 Type: ${escapeHtml(data.fertilizing.fertilizer_type)}</p>
+            <p class="mb-2">⚠️ ${escapeHtml(data.fertilizing.reason)}</p>
+            <span class="badge bg-light text-dark border">📅 Next scheduled: ${escapeHtml(data.fertilizing.next_scheduled)}</span>
         `;
         
     } catch (e) {
@@ -504,15 +563,14 @@ window.fetchClimateData = async function() {
 window.sendAlert = async function() {
     if (!window.activeSessionId) return;
     
-    // In a real app, this would be tied to the logged-in user's profile
-    let emailAddress = prompt("Enter email address to send alert (e.g. user@example.com):");
-    if (!emailAddress) return;
-    
+    // The advisory is always delivered to the signed-in account's own address
+    // (the server ignores any client-supplied recipient), so no email prompt is
+    // needed any more.
     try {
-        const response = await fetch(`http://localhost:8000/api/sessions/${window.activeSessionId}/notify`, {
+        const response = await fetch(apiUrl(`/api/sessions/${window.activeSessionId}/notify`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: emailAddress.trim() })
+            body: JSON.stringify({})
         });
         
         const data = await response.json();
@@ -536,7 +594,7 @@ let selectedManageSessionId = null;
 async function loadPlantFarmDashboard() {
     try {
         // Load summary
-        const summaryRes = await fetch("http://localhost:8000/api/dashboard/summary");
+        const summaryRes = await fetch(apiUrl('/api/dashboard/summary'));
         if (summaryRes.ok) {
             const summary = await summaryRes.json();
             document.getElementById('summary-investment').textContent = "₹" + summary.total_investment;
@@ -546,7 +604,7 @@ async function loadPlantFarmDashboard() {
         }
         
         // Load sessions list
-        const sessionsRes = await fetch("http://localhost:8000/api/sessions");
+        const sessionsRes = await fetch(apiUrl('/api/sessions'));
         if (sessionsRes.ok) {
             const sessions = await sessionsRes.json();
             const listEl = document.getElementById('session-list');
@@ -562,15 +620,20 @@ async function loadPlantFarmDashboard() {
                     ? '<span class="badge bg-success float-end">Active</span>' 
                     : '<span class="badge bg-secondary float-end">Harvested</span>';
                 
-                listEl.innerHTML += `
-                    <button class="list-group-item list-group-item-action ${isSelected}" onclick="selectSessionToManage(${s.id}, '${s.plot_name}', ${s.is_active})">
+                // data-* attributes + a delegated listener instead of an inline
+                // onclick: a plot name containing a quote could otherwise break
+                // out of the JavaScript string and execute script.
+                listEl.insertAdjacentHTML('beforeend', `
+                    <button type="button" class="list-group-item list-group-item-action ${isSelected}"
+                            data-action="select-plant-session" data-session-id="${s.id}"
+                            data-session-name="${escapeHtml(s.plot_name)}" data-active="${s.is_active}">
                         <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1 fw-bold">${s.plot_name} (${s.crop_type})</h6>
+                            <h6 class="mb-1 fw-bold">${escapeHtml(s.plot_name)} (${escapeHtml(s.crop_type)})</h6>
                         </div>
-                        <small class="text-muted">Area: ${s.area_cents} cents | Loc: ${s.location}</small>
+                        <small class="text-muted">Area: ${escapeHtml(s.area_cents)} cents | Loc: ${escapeHtml(s.location)}</small>
                         ${statusBadge}
                     </button>
-                `;
+                `);
             });
         }
     } catch (e) {
@@ -599,7 +662,7 @@ window.selectSessionToManage = function(id, name, isActive) {
 
 async function loadDailyLogs(sessionId) {
     try {
-        const res = await fetch(`http://localhost:8000/api/sessions/${sessionId}/daily_logs`);
+        const res = await fetch(apiUrl(`/api/sessions/${sessionId}/daily_logs`));
         const logsEl = document.getElementById('daily-logs-history');
         logsEl.innerHTML = '';
         
@@ -613,12 +676,12 @@ async function loadDailyLogs(sessionId) {
             // Show newest first
             logs.reverse().forEach(log => {
                 const dateStr = new Date(log.date).toLocaleDateString() + ' ' + new Date(log.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                const weatherStr = `<b>climate 🌤️ :</b> ${log.weather_condition || 'N/A'}`;
+                const weatherStr = `<b>climate 🌤️ :</b> ${escapeHtml(log.weather_condition || 'N/A')}`;
                 const wateredStr = `<b>watered 💧 :</b> ${log.watered ? 'Yes' : 'No'}`;
-                const waterReasonStr = log.water_reason ? `<b>reason for 💧 :</b> ${log.water_reason}` : '';
+                const waterReasonStr = log.water_reason ? `<b>reason for 💧 :</b> ${escapeHtml(log.water_reason)}` : '';
                 const fertStr = `<b>fertilizers :</b> ${log.fertilized ? 'Yes' : 'No'}`;
-                const fertKgStr = log.fertilized ? `<b>fertilizer kg :</b> ${log.fertilizer_amount} kg used` : '';
-                const notesStr = log.notes ? `<b>notes :</b> ${log.notes}` : '';
+                const fertKgStr = log.fertilized ? `<b>fertilizer kg :</b> ${escapeHtml(log.fertilizer_amount)} kg used` : '';
+                const notesStr = log.notes ? `<b>notes :</b> ${escapeHtml(log.notes)}` : '';
 
                 const details = [weatherStr, wateredStr, waterReasonStr, fertStr, fertKgStr, notesStr].filter(Boolean).join('<br>');
                 
@@ -655,7 +718,7 @@ document.getElementById('new-session-form')?.addEventListener('submit', async (e
     };
     
     try {
-        const response = await fetch("http://localhost:8000/api/sessions", {
+        const response = await fetch(apiUrl('/api/sessions'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -706,7 +769,7 @@ document.getElementById('daily-log-form')?.addEventListener('submit', async (e) 
     };
     
     try {
-        const response = await fetch(`http://localhost:8000/api/sessions/${selectedManageSessionId}/daily_logs`, {
+        const response = await fetch(apiUrl(`/api/sessions/${selectedManageSessionId}/daily_logs`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -738,7 +801,7 @@ window.harvestSession = async function() {
     };
     
     try {
-        const response = await fetch(`http://localhost:8000/api/sessions/${selectedManageSessionId}/harvest`, {
+        const response = await fetch(apiUrl(`/api/sessions/${selectedManageSessionId}/harvest`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -768,8 +831,8 @@ let resourceTimelineChartInst = null;
 async function loadAnalyticsDashboard(sessionId = null) {
     try {
         const url = sessionId 
-            ? `http://localhost:8000/api/dashboard/analytics?session_id=${sessionId}`
-            : "http://localhost:8000/api/dashboard/analytics";
+            ? apiUrl(`/api/dashboard/analytics?session_id=${sessionId}`)
+            : apiUrl('/api/dashboard/analytics');
         const res = await fetch(url);
         if (!res.ok) return;
         const data = await res.json();
@@ -895,9 +958,9 @@ async function loadAnalyticsDashboard(sessionId = null) {
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <div>
                             <span class="me-2 fs-5">${badge}</span>
-                            <strong>${s.plot_name}</strong>
+                            <strong>${escapeHtml(s.plot_name)}</strong>
                         </div>
-                        <span class="text-success fw-bold">₹${s.revenue}</span>
+                        <span class="text-success fw-bold">₹${escapeHtml(s.revenue)}</span>
                     </li>
                 `;
             });
@@ -1008,7 +1071,7 @@ let selectedAnimalSessionId = null;
 
 async function loadAnimalDashboard() {
     try {
-        const summaryRes = await fetch("http://localhost:8000/api/animals/dashboard/summary");
+        const summaryRes = await fetch(apiUrl('/api/animals/dashboard/summary'));
         if (summaryRes.ok) {
             const summary = await summaryRes.json();
             document.getElementById('animal-summary-investment').textContent = "₹" + summary.total_investment;
@@ -1018,7 +1081,7 @@ async function loadAnimalDashboard() {
             document.getElementById('animal-summary-margin').textContent = summary.profit_margin_percent + "%";
         }
         
-        const sessionsRes = await fetch("http://localhost:8000/api/animals");
+        const sessionsRes = await fetch(apiUrl('/api/animals'));
         if (sessionsRes.ok) {
             const sessions = await sessionsRes.json();
             const listEl = document.getElementById('animal-session-list');
@@ -1034,15 +1097,17 @@ async function loadAnimalDashboard() {
                     ? '<span class="badge bg-success float-end">Active</span>' 
                     : '<span class="badge bg-secondary float-end">Completed</span>';
                 
-                listEl.innerHTML += `
-                    <button class="list-group-item list-group-item-action ${isSelected}" onclick="selectAnimalSessionToManage(${s.id}, '${s.session_name}', ${s.is_active})">
+                listEl.insertAdjacentHTML('beforeend', `
+                    <button type="button" class="list-group-item list-group-item-action ${isSelected}"
+                            data-action="select-animal-session" data-session-id="${s.id}"
+                            data-session-name="${escapeHtml(s.session_name)}" data-active="${s.is_active}">
                         <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1 fw-bold">${s.session_name} (${s.animal_type})</h6>
+                            <h6 class="mb-1 fw-bold">${escapeHtml(s.session_name)} (${escapeHtml(s.animal_type)})</h6>
                         </div>
-                        <small class="text-muted">Count: ${s.animal_count}</small>
+                        <small class="text-muted">Count: ${escapeHtml(s.animal_count)}</small>
                         ${statusBadge}
                     </button>
-                `;
+                `);
             });
         }
     } catch (e) {
@@ -1068,7 +1133,7 @@ window.selectAnimalSessionToManage = function(id, name, isActive) {
 
 async function loadAnimalDailyLogs(sessionId) {
     try {
-        const res = await fetch(`http://localhost:8000/api/animals/${sessionId}/daily_logs`);
+        const res = await fetch(apiUrl(`/api/animals/${sessionId}/daily_logs`));
         const logsEl = document.getElementById('animal-daily-logs-history');
         logsEl.innerHTML = '';
         
@@ -1082,11 +1147,11 @@ async function loadAnimalDailyLogs(sessionId) {
             logs.reverse().forEach(log => {
                 const dateStr = new Date(log.date).toLocaleDateString() + ' ' + new Date(log.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 
-                const foodStr = `<b>Food 📦:</b> ${log.food_given_qty} kg (₹${log.food_cost_today})`;
-                const yieldStr = log.yield_amount > 0 ? `<b>Yield 🥛/🥚:</b> ${log.yield_amount} @ ₹${log.yield_selling_price} (Total: ₹${log.yield_amount * log.yield_selling_price})` : '';
-                const medStr = log.medicine_given ? `<b>Medicine 💊:</b> Yes - ${log.medicine_name} (₹${log.medicine_cost}) - ${log.medicine_reason}` : `<b>Medicine 💊:</b> No`;
-                const deathStr = log.deaths_today > 0 ? `<b>Deaths ☠️:</b> ${log.deaths_today}` : '';
-                const notesStr = log.notes ? `<b>Notes:</b> ${log.notes}` : '';
+                const foodStr = `<b>Food 📦:</b> ${escapeHtml(log.food_given_qty)} kg (₹${escapeHtml(log.food_cost_today)})`;
+                const yieldStr = log.yield_amount > 0 ? `<b>Yield 🥛/🥚:</b> ${escapeHtml(log.yield_amount)} @ ₹${escapeHtml(log.yield_selling_price)} (Total: ₹${escapeHtml(log.yield_amount * log.yield_selling_price)})` : '';
+                const medStr = log.medicine_given ? `<b>Medicine 💊:</b> Yes - ${escapeHtml(log.medicine_name)} (₹${escapeHtml(log.medicine_cost)}) - ${escapeHtml(log.medicine_reason)}` : `<b>Medicine 💊:</b> No`;
+                const deathStr = log.deaths_today > 0 ? `<b>Deaths ☠️:</b> ${escapeHtml(log.deaths_today)}` : '';
+                const notesStr = log.notes ? `<b>Notes:</b> ${escapeHtml(log.notes)}` : '';
 
                 const details = [foodStr, yieldStr, medStr, deathStr, notesStr].filter(Boolean).join('<br>');
                 
@@ -1120,7 +1185,7 @@ document.getElementById('new-animal-session-form')?.addEventListener('submit', a
     };
     
     try {
-        const response = await fetch("http://localhost:8000/api/animals", {
+        const response = await fetch(apiUrl('/api/animals'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1161,7 +1226,7 @@ document.getElementById('animal-daily-log-form')?.addEventListener('submit', asy
     };
     
     try {
-        const response = await fetch(`http://localhost:8000/api/animals/${selectedAnimalSessionId}/daily_logs`, {
+        const response = await fetch(apiUrl(`/api/animals/${selectedAnimalSessionId}/daily_logs`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1195,7 +1260,7 @@ document.getElementById('close-animal-session-form')?.addEventListener('submit',
     };
     
     try {
-        const response = await fetch(`http://localhost:8000/api/animals/${selectedAnimalSessionId}/close`, {
+        const response = await fetch(apiUrl(`/api/animals/${selectedAnimalSessionId}/close`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1228,8 +1293,8 @@ let animalTimelineChartInstance = null;
 async function loadAnimalAnalyticsDashboard(sessionId = null) {
     try {
         const url = sessionId 
-            ? `http://localhost:8000/api/animals/dashboard/analytics?session_id=${sessionId}`
-            : "http://localhost:8000/api/animals/dashboard/analytics";
+            ? apiUrl(`/api/animals/dashboard/analytics?session_id=${sessionId}`)
+            : apiUrl('/api/animals/dashboard/analytics');
         const res = await fetch(url);
         if (res.ok) {
             const data = await res.json();
@@ -1355,12 +1420,12 @@ function renderAnimalHighYieldBoard(sessions) {
                 <div class="d-flex align-items-center">
                     ${medal}
                     <div>
-                        <h6 class="mb-0 fw-bold">${s.plot_name}</h6>
-                        <small class="text-muted">Yield: ${s.total_yield} units</small>
+                        <h6 class="mb-0 fw-bold">${escapeHtml(s.plot_name)}</h6>
+                        <small class="text-muted">Yield: ${escapeHtml(s.total_yield)} units</small>
                     </div>
                 </div>
                 <div class="text-end">
-                    <div class="fw-bold text-success">₹${s.profit}</div>
+                    <div class="fw-bold text-success">₹${escapeHtml(s.profit)}</div>
                     <small class="text-muted">Profit</small>
                 </div>
             </li>
@@ -1451,7 +1516,7 @@ function renderAnimalTimelineChart(timelineData) {
 
 async function loadMarketIntelligence() {
     try {
-        const response = await fetch("http://localhost:8000/api/market/intelligence");
+        const response = await fetch(apiUrl('/api/market/intelligence'));
         if (response.ok) {
             const data = await response.json();
             renderMarketCommodities(data.market_data);
@@ -1482,8 +1547,8 @@ function renderMarketCommodities(marketData) {
         const trendIcon = item.trend_perc > 0 ? '↑' : '↓';
         const mandiRows = item.mandis.map(m => `
             <div class="d-flex justify-content-between small border-bottom py-1">
-                <span>${m.location} <span class="text-muted">(${m.distance})</span></span>
-                <span class="fw-bold">₹${m.price}/${item.unit}</span>
+                <span>${escapeHtml(m.location)} <span class="text-muted">(${escapeHtml(m.distance)})</span></span>
+                <span class="fw-bold">₹${escapeHtml(m.price)}/${escapeHtml(item.unit)}</span>
             </div>
         `).join('');
         
@@ -1491,36 +1556,36 @@ function renderMarketCommodities(marketData) {
         <div class="col-md-6 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-0 pt-4 pb-0">
-                    <h5 class="card-title fw-bold">${item.commodity} Market <span class="badge bg-secondary ms-2">${item.plot}</span></h5>
+                    <h5 class="card-title fw-bold">${escapeHtml(item.commodity)} Market <span class="badge bg-secondary ms-2">${escapeHtml(item.plot)}</span></h5>
                 </div>
                 <div class="card-body">
                     <div class="row mb-3">
                         <div class="col-6">
-                            <p class="text-muted mb-1 small">Local Price</p>
-                            <h3 class="fw-bold mb-0">₹${item.current_price}<span class="fs-6 text-muted">/${item.unit}</span></h3>
+                            <p class="text-muted mb-1 small">Local Price <span class="badge bg-warning text-dark">simulated</span></p>
+                            <h3 class="fw-bold mb-0">₹${escapeHtml(item.current_price)}<span class="fs-6 text-muted">/${escapeHtml(item.unit)}</span></h3>
                         </div>
                         <div class="col-6 text-end">
-                            <p class="text-muted mb-1 small">7-Day Trend</p>
-                            <h4 class="${trendClass} mb-0">${trendIcon} ${Math.abs(item.trend_perc)}%</h4>
+                            <p class="text-muted mb-1 small">7-Day Trend <span class="badge bg-warning text-dark">simulated</span></p>
+                            <h4 class="${trendClass} mb-0">${trendIcon} ${escapeHtml(Math.abs(item.trend_perc))}%</h4>
                         </div>
                     </div>
                     
                     <div class="d-flex justify-content-between mb-3 bg-light rounded p-2">
                         <div class="text-center w-50 border-end">
                             <small class="text-muted d-block">State Avg</small>
-                            <span class="fw-bold">₹${item.state_avg}</span>
+                            <span class="fw-bold">₹${escapeHtml(item.state_avg)}</span>
                         </div>
                         <div class="text-center w-50">
                             <small class="text-muted d-block">National Avg</small>
-                            <span class="fw-bold">₹${item.national_avg}</span>
+                            <span class="fw-bold">₹${escapeHtml(item.national_avg)}</span>
                         </div>
                     </div>
                     
-                    <h6 class="fw-bold mt-4 mb-2">Nearby Mandis / Auctions</h6>
+                    <h6 class="fw-bold mt-4 mb-2">Nearby Mandis / Auctions <span class="badge bg-warning text-dark">simulated</span></h6>
                     ${mandiRows}
                     
                     <div class="alert alert-warning mt-3 mb-0 p-2 text-center">
-                        <strong>AI Forecast (7 Days):</strong> Expected ₹${item.forecast_price}/${item.unit}
+                        <strong>Scenario Projection (7 Days, simulated):</strong> Expected ₹${escapeHtml(item.forecast_price)}/${escapeHtml(item.unit)}
                     </div>
                 </div>
             </div>
@@ -1544,16 +1609,16 @@ function renderMarketRecommendations(recommendations) {
     recommendations.forEach(rec => {
         listEl.innerHTML += `
             <div class="border rounded p-3 mb-3 bg-white shadow-sm">
-                <h6 class="fw-bold text-dark mb-2">${rec.title}</h6>
+                <h6 class="fw-bold text-dark mb-2">${escapeHtml(rec.title)}</h6>
                 <div class="d-flex justify-content-between small mb-1">
-                    <span class="text-muted">Current: <strong class="text-dark">${rec.current_price}</strong></span>
-                    <span class="text-muted">Forecast: <strong class="text-success">${rec.forecast_price}</strong></span>
+                    <span class="text-muted">Current: <strong class="text-dark">${escapeHtml(rec.current_price)}</strong></span>
+                    <span class="text-muted">Scenario: <strong class="text-success">${escapeHtml(rec.forecast_price)}</strong></span>
                 </div>
                 <div class="small mb-2">
-                    <span class="text-muted">Best Location:</span> <span class="fw-bold">${rec.best_location}</span>
+                    <span class="text-muted">Best Location:</span> <span class="fw-bold">${escapeHtml(rec.best_location)}</span>
                 </div>
                 <div class="alert alert-success p-2 mb-0 mt-2 small text-center fw-bold">
-                    Action: ${rec.action}
+                    Action: ${escapeHtml(rec.action)}
                 </div>
             </div>
         `;
@@ -1600,10 +1665,10 @@ window.loadUnifiedDashboard = async function() {
     // Fetch both plant and animal sessions and performance
     try {
         const [plantsRes, animalsRes, plantDashRes, animalDashRes] = await Promise.all([
-            fetch('http://localhost:8000/api/sessions'),
-            fetch('http://localhost:8000/api/animals'),
-            fetch('http://localhost:8000/api/dashboard/analytics'),
-            fetch('http://localhost:8000/api/animals/dashboard/analytics')
+            fetch(apiUrl('/api/sessions')),
+            fetch(apiUrl('/api/animals')),
+            fetch(apiUrl('/api/dashboard/analytics')),
+            fetch(apiUrl('/api/animals/dashboard/analytics'))
         ]);
         
         let plants = [];
@@ -1627,14 +1692,16 @@ window.loadUnifiedDashboard = async function() {
         
         plants.forEach(s => {
             const status = s.is_active ? '✅ Active' : '🏁 Ended';
-            plantList.innerHTML += `
-                <button class="list-group-item list-group-item-action" onclick="showUnifiedSession('plant', ${s.id}, '${s.plot_name}', ${s.is_active})">
+            plantList.insertAdjacentHTML('beforeend', `
+                <button type="button" class="list-group-item list-group-item-action"
+                        data-action="unified-session" data-session-type="plant" data-session-id="${s.id}"
+                        data-session-name="${escapeHtml(s.plot_name)}" data-active="${s.is_active}">
                     <div class="d-flex justify-content-between">
-                        <span>${s.plot_name}</span>
+                        <span>${escapeHtml(s.plot_name)}</span>
                         <small class="text-muted">${status}</small>
                     </div>
                 </button>
-            `;
+            `);
         });
         
         // Populate Animal List
@@ -1643,14 +1710,16 @@ window.loadUnifiedDashboard = async function() {
         
         animals.forEach(s => {
             const status = s.is_active ? '✅ Active' : '🏁 Ended';
-            animalList.innerHTML += `
-                <button class="list-group-item list-group-item-action" onclick="showUnifiedSession('animal', ${s.id}, '${s.session_name}', ${s.is_active})">
+            animalList.insertAdjacentHTML('beforeend', `
+                <button type="button" class="list-group-item list-group-item-action"
+                        data-action="unified-session" data-session-type="animal" data-session-id="${s.id}"
+                        data-session-name="${escapeHtml(s.session_name)}" data-active="${s.is_active}">
                     <div class="d-flex justify-content-between">
-                        <span>${s.session_name}</span>
+                        <span>${escapeHtml(s.session_name)}</span>
                         <small class="text-muted">${status}</small>
                     </div>
                 </button>
-            `;
+            `);
         });
         
     } catch (e) {
@@ -1727,28 +1796,80 @@ window.showUnifiedSession = function(type, id, name, isActive) {
 
 
 window.loadAnalyticsSidebar = async function() {
+    const sidebarLink = (type, session, icon) => `
+        <a href="#" class="list-group-item list-group-item-action ps-4"
+           data-action="filter-analytics" data-session-type="${type}" data-session-id="${session.id}">
+            ${icon} ${escapeHtml(type === 'plant' ? session.plot_name : session.session_name)}
+        </a>`;
+
     try {
-        const plantRes = await fetch("http://localhost:8000/api/sessions");
+        const plantRes = await fetch(apiUrl('/api/sessions'));
         if (plantRes.ok) {
             const plantSessions = await plantRes.json();
             const activePlant = plantSessions.filter(s => s.is_active);
             const completedPlant = plantSessions.filter(s => !s.is_active);
-            document.getElementById('analytics-plant-active').innerHTML = activePlant.map(s => `<a href="#" class="list-group-item list-group-item-action ps-4" onclick="filterAnalyticsSession('plant', ${s.id}, this); return false;">🌱 ${s.plot_name}</a>`).join('');
-            document.getElementById('analytics-plant-completed').innerHTML = completedPlant.map(s => `<a href="#" class="list-group-item list-group-item-action ps-4" onclick="filterAnalyticsSession('plant', ${s.id}, this); return false;">🌱 ${s.plot_name}</a>`).join('');
+            document.getElementById('analytics-plant-active').innerHTML = activePlant.map(s => sidebarLink('plant', s, '🌱')).join('');
+            document.getElementById('analytics-plant-completed').innerHTML = completedPlant.map(s => sidebarLink('plant', s, '🌱')).join('');
         }
         
-        const animalRes = await fetch("http://localhost:8000/api/animals");
+        const animalRes = await fetch(apiUrl('/api/animals'));
         if (animalRes.ok) {
             const animalSessions = await animalRes.json();
             const activeAnimal = animalSessions.filter(s => s.is_active);
             const completedAnimal = animalSessions.filter(s => !s.is_active);
-            document.getElementById('analytics-animal-active').innerHTML = activeAnimal.map(s => `<a href="#" class="list-group-item list-group-item-action ps-4" onclick="filterAnalyticsSession('animal', ${s.id}, this); return false;">🐾 ${s.session_name}</a>`).join('');
-            document.getElementById('analytics-animal-completed').innerHTML = completedAnimal.map(s => `<a href="#" class="list-group-item list-group-item-action ps-4" onclick="filterAnalyticsSession('animal', ${s.id}, this); return false;">🐾 ${s.session_name}</a>`).join('');
+            document.getElementById('analytics-animal-active').innerHTML = activeAnimal.map(s => sidebarLink('animal', s, '🐾')).join('');
+            document.getElementById('analytics-animal-completed').innerHTML = completedAnimal.map(s => sidebarLink('animal', s, '🐾')).join('');
         }
     } catch (e) {
         console.error("Error loading analytics sidebar", e);
     }
 };
+
+/**
+ * Delegated click handler for the session lists.
+ *
+ * Version 1 built inline onclick="fn(id, 'plot name')" strings. A plot name
+ * containing an apostrophe terminated the JavaScript string and the remainder of
+ * the name was executed as code (stored XSS). The lists now carry data-*
+ * attributes and every action is dispatched from here, so user data is only ever
+ * read as a value, never as code.
+ */
+document.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-action]');
+    if (!trigger) return;
+
+    const action = trigger.getAttribute('data-action');
+    const sessionId = parseInt(trigger.getAttribute('data-session-id'), 10);
+    const sessionName = trigger.getAttribute('data-session-name') || '';
+    const isActive = trigger.getAttribute('data-active') === 'true';
+    const sessionType = trigger.getAttribute('data-session-type') || 'plant';
+
+    switch (action) {
+        case 'select-plant-session':
+            if (typeof selectSessionToManage === 'function') {
+                selectSessionToManage(sessionId, sessionName, isActive);
+            }
+            break;
+        case 'select-animal-session':
+            if (typeof selectAnimalSessionToManage === 'function') {
+                selectAnimalSessionToManage(sessionId, sessionName, isActive);
+            }
+            break;
+        case 'unified-session':
+            if (typeof showUnifiedSession === 'function') {
+                showUnifiedSession(sessionType, sessionId, sessionName, isActive);
+            }
+            break;
+        case 'filter-analytics':
+            event.preventDefault();
+            if (typeof filterAnalyticsSession === 'function') {
+                filterAnalyticsSession(sessionType, sessionId, trigger);
+            }
+            break;
+        default:
+            break;
+    }
+});
 
 window.filterAnalyticsSession = function(type, sessionId, element) {
     document.getElementById('plant-analytics-section').classList.add('d-none');
@@ -1785,24 +1906,14 @@ window.switchAnalyticsTab = function(tabName) {
 // ==========================================
 // Authentication Interceptors & Logic
 // ==========================================
+// The Bearer token is attached by js/api.js, which replaces window.fetch.
+// Version 1 injected a client-asserted `X-User-Id` header: any caller could set
+// it to another account's id and read that account's data. The server now
+// requires a signed JWT, and the token is stored on login/register below.
 
-// Global Fetch Interceptor to automatically add X-User-Id header
-const originalFetch = window.fetch;
-window.fetch = async function(...args) {
-    let [resource, config] = args;
-    const user = JSON.parse(localStorage.getItem('smartfarm_user') || 'null');
-    if (user && user.id) {
-        if (!config) config = {};
-        if (!config.headers) config.headers = {};
-        
-        if (config.headers instanceof Headers) {
-            config.headers.set('X-User-Id', String(user.id));
-        } else {
-            config.headers['X-User-Id'] = String(user.id);
-        }
-    }
-    return originalFetch(resource, config);
-};
+function currentUser() {
+    return getStoredUser();
+}
 
 // Toggle Auth panel forms & tabs
 window.switchAuthTab = function(mode) {
@@ -1862,7 +1973,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Signing In...';
         
         try {
-            const res = await originalFetch('http://localhost:8000/api/auth/login', {
+            const res = await rawFetch(apiUrl('/api/auth/login'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
@@ -1873,8 +1984,8 @@ document.addEventListener('DOMContentLoaded', () => {
             succAlert.textContent = data.message;
             succAlert.classList.remove('d-none');
             
-            // Save user session
-            localStorage.setItem('smartfarm_user', JSON.stringify(data.user));
+            // Persist the signed access token alongside the display profile.
+            setSession(data.access_token, data.user);
             
             setTimeout(() => {
                 document.getElementById('login-form').reset();
@@ -1912,7 +2023,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Registering...';
         
         try {
-            const res = await originalFetch('http://localhost:8000/api/auth/register', {
+            const res = await rawFetch(apiUrl('/api/auth/register'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, email, password })
@@ -1923,8 +2034,8 @@ document.addEventListener('DOMContentLoaded', () => {
             succAlert.textContent = data.message + ' Logging you in...';
             succAlert.classList.remove('d-none');
             
-            // Save user session
-            localStorage.setItem('smartfarm_user', JSON.stringify(data.user));
+            // Persist the signed access token alongside the display profile.
+            setSession(data.access_token, data.user);
             
             setTimeout(() => {
                 document.getElementById('register-form').reset();
@@ -1954,7 +2065,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Sending OTP...';
         
         try {
-            const res = await originalFetch('http://localhost:8000/api/auth/forgot-password', {
+            const res = await rawFetch(apiUrl('/api/auth/forgot-password'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email })
@@ -2010,7 +2121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Updating...';
         
         try {
-            const res = await originalFetch('http://localhost:8000/api/auth/reset-password', {
+            const res = await rawFetch(apiUrl('/api/auth/reset-password'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, otp, new_password: newPassword })
@@ -2035,18 +2146,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Check initial user state
-    const user = JSON.parse(localStorage.getItem('smartfarm_user') || 'null');
-    if (user) {
-        showView('home');
-    } else {
-        showView('home');
+    // Restore the session: the stored token decides whether the user is signed
+    // in, and an invalid/expired token is discarded by the fetch layer on the
+    // first request.
+    showView('home');
+    if (isAuthenticated()) {
+        rawFetch(apiUrl('/api/auth/me'), { method: 'GET' })
+            .then(res => (res.ok ? res.json() : null))
+            .then(data => {
+                if (data && data.user) {
+                    setSession(getToken(), data.user);
+                    loadUserProfile();
+                } else {
+                    clearSession();
+                }
+            })
+            .catch(() => clearSession());
     }
 });
 
 // Load Profile Info and Stats
 window.loadUserProfile = async function() {
-    const user = JSON.parse(localStorage.getItem('smartfarm_user') || 'null');
+    const user = getStoredUser();
     if (!user) return;
     
     // Populate simple info
@@ -2063,7 +2184,7 @@ window.loadUserProfile = async function() {
     
     // Fetch stats
     try {
-        const res = await fetch('http://localhost:8000/api/auth/user-stats');
+        const res = await fetch(apiUrl('/api/auth/user-stats'));
         if (res.ok) {
             const stats = await res.json();
             document.getElementById('stat-plant-count').textContent = stats.plant_count;
@@ -2079,6 +2200,6 @@ window.loadUserProfile = async function() {
 
 // Logout handler
 window.handleLogout = function() {
-    localStorage.removeItem('smartfarm_user');
+    clearSession();
     window.location.reload();
 };

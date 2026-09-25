@@ -26,6 +26,10 @@ logger = get_logger("security")
 LEGACY_SALT = "smartfarm_secret_salt_123"
 LEGACY_PREFIX = "sha256$"
 
+# bcrypt silently ignores everything past 72 bytes, so a longer password would
+# make two different passwords interchangeable. Reject instead of truncating.
+BCRYPT_MAX_BYTES = 72
+
 
 # --------------------------------------------------------------------------
 # Password hashing
@@ -121,6 +125,8 @@ def validate_password_strength(password: str) -> Optional[str]:
         return f"Password must be at least {settings.password_min_length} characters long."
     if password.strip() == "":
         return "Password cannot be blank."
+    if len(password.encode("utf-8")) > BCRYPT_MAX_BYTES:
+        return f"Password must be at most {BCRYPT_MAX_BYTES} bytes long."
     if settings.is_production and password.isdigit():
         return "Password must not be a numeric-only value."
     return None

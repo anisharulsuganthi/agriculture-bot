@@ -33,6 +33,7 @@ MIGRATION_TABLE = "schema_migrations"
 # (version, module, human readable name)
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "migrations.m001_phase1_schema", "Phase 1 schema + data fixes"),
+    (2, "migrations.m002_referential_integrity", "Declare the foreign keys and indexes the ORM expects"),
 ]
 
 
@@ -61,10 +62,17 @@ def applied_versions(conn: sqlite3.Connection) -> set[int]:
 
 
 def backup_database(tag: str = "pre_migration") -> Path | None:
+    """
+    Copy the database aside before a migration runs.
+
+    The backup is written next to the database itself (``<db dir>/backups``) so a
+    test database in a temporary directory never writes into the project tree,
+    while the real database keeps its backups in ``backend/backups``.
+    """
     source = settings.database_path
     if not source.exists():
         return None
-    backup_dir = BACKEND_DIR / "backups"
+    backup_dir = source.parent / "backups"
     backup_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     target = backup_dir / f"{source.stem}_{tag}_{stamp}.db"
