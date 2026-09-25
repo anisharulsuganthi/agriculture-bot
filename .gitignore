@@ -1,61 +1,54 @@
-# ==========================================================
-# Smart Farm / Agricultural Decision Intelligence System
-# .gitignore  (Phase 0 checkpoint safety)
-# ==========================================================
+# ---- secrets / local configuration -------------------------------------
+.env
+backend/.env
+*.env.local
+.env.*
+!.env.example
 
-# --- Virtual environments (large, machine specific) ---
-backend/venv/
+# ---- python -------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- virtual environments ----------------------------------------------
 venv/
 .venv/
 env/
 
-# --- Python bytecode / build artifacts ---
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-build/
-dist/
-.pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-
-# --- Secrets: NEVER commit these ---
-.env
-backend/.env
-*.env.local
-secrets.json
-
-# --- Database: excluded so hashed credentials / farm data never reach git ---
-backend/database.db
+# ---- runtime data -------------------------------------------------------
+backend/logs/
+*.log
+backend/logs/*.log
 backend/backups/
 *.db-journal
+*.db-wal
+*.db-shm
+
+# The live SQLite database holds account emails and password hashes, so it is
+# NOT tracked. It is created automatically by backend/migrations on first start
+# and backed up before every migration into backend/backups/.
+backend/database.db
+*.sqlite
 *.sqlite3
 
-# --- Logs / runtime scratch ---
-*.log
-backend/error.log
-backend/server.log
-backend/server_err.log
-backend/run_now.log
-backend/run_now.err.log
+# A structure-only copy may be committed for documentation purposes.
+!backend/database.schema.sql
 
-# --- Generated RAG artifacts (Phase 4) ---
-rag/vector_store/
-rag/vector_store/**
-rag/cache/
-data/raw/
-data/processed/
-data/embeddings/
+# ---- ML model weights ---------------------------------------------------
+# The fine-tuned MobileNetV2 weights are ~9 MB. They are required to run the
+# disease endpoint, so they stay tracked. Hugging Face download caches are not.
+.cache/
+huggingface/
+*.safetensors.tmp
 
-# --- Node (only if a build step is ever added) ---
-node_modules/
-package-lock.json
-
-# --- OS / editor ---
+# ---- editors / OS -------------------------------------------------------
 .vscode/
 .idea/
+.DS_Store
 Thumbs.db
 desktop.ini
-*.swp

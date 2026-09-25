@@ -1,431 +1,923 @@
+"""
+Smart Farm - AI-Powered Agricultural Decision Intelligence System for Precision Farming.
+FastAPI application (Phase 1 + Phase 2 hardened).
 
-from fastapi import FastAPI, File, Form, UploadFile, Depends, HTTPException, Header
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-import json
+Version 1 -> Version 2 changes (evidence: PROJECT_AUDIT.md)
+    * real authentication: bcrypt hashing with transparent upgrade of legacy
+      hashes, JWT access tokens and a ``get_current_user`` dependency. The client
+      supplied ``X-User-Id`` header is tolerated only while
+      ``ALLOW_LEGACY_USER_HEADER=true`` and every use is logged.
+    * every user-owned resource is loaded through ownership-checked helpers,
+      closing the 9 IDOR routes found in the audit.
+    * configuration, secrets, CORS, database path, model path, upload limits and
+      rate limits all come from ``app.config`` - nothing is hardcoded.
+    * structured logging with secret redaction; unhandled errors are logged and
+      returned as a generic message.
+    * simulated market data is isolated in ``simulation_service`` and labelled as
+      demonstration data in every response.
+    * soil moisture is a documented estimate, never ``random.randint``.
+    * all Version-1 endpoints keep their paths and response shapes, so the
+      existing frontend keeps working.
+
+See API_DOCUMENTATION.md for the endpoint reference.
+"""
+from __future__ import annotations
+
 import hashlib
-import random
+import json
+import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
-from database import SessionLocal, engine, DiseasePrediction, FarmingSession, DailyLog, RecommendationLog, init_db, get_db, AnimalSession, AnimalDailyLog, User
-from ml_service import load_or_download_model, predict_image
-from grok_service import get_cure_for_disease
-from weather_service import get_current_weather, get_forecast
-from climate_engine import assess_disease_risk
-from recommendation_engine import generate_watering_recommendation, generate_fertilizing_recommendation
-from notification_service import send_email_alert, format_alert_message, send_otp_email
-from pydantic import BaseModel
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy.orm import Session
 
-def hash_password(password: str) -> str:
-    salt = "smartfarm_secret_salt_123"
-    return hashlib.sha256((password + salt).encode("utf-8")).hexdigest()
+from advisory_service import get_cure_for_disease
+from app.config import settings
+from app.crop_vocab import canonical_crops, normalize_crop_type, supported_crops
+from app.deps import get_current_user, get_owned_animal_session, get_owned_plant_session
+from app.logging_config import get_logger, setup_logging
+from app.rate_limit import rate_limit
+from app.security import (
+    create_access_token,
+    hash_password,
+    needs_rehash,
+    validate_password_strength,
+    verify_password,
+)
+from climate_engine import assess_disease_risk, assess_forecast_risk, calculate_et0
+from database import (
+    AnimalDailyLog,
+    AnimalSession,
+    DailyLog,
+    DiseasePrediction,
+    FarmingSession,
+    RecommendationLog,
+    User,
+    get_db,
+    init_db,
+    to_date_key,
+)
+from ml_service import load_or_download_model, model_info, predict_image
+from notification_service import (
+    format_alert_message,
+    is_configured as email_configured,
+    send_email_alert,
+    send_otp_email,
+)
+from recommendation_engine import (
+    estimate_soil_moisture,
+    generate_fertilizing_recommendation,
+    generate_watering_recommendation,
+    get_crop_requirement,
+    is_crop_supported,
+)
+from simulation_service import build_market_intelligence
+from weather_service import WeatherUnavailable, get_current_weather, get_forecast
 
+logger = setup_logging()
+api_logger = get_logger("api")
+
+
+# ==========================================================================
+# Request models (validated)
+# ==========================================================================
 class UserRegister(BaseModel):
-    name: str
-    email: str
-    password: str
+    name: str = Field(..., min_length=2, max_length=100)
+    email: str = Field(..., min_length=5, max_length=100)
+    password: str = Field(..., min_length=4, max_length=200)
+
+    @field_validator("email")
+    @classmethod
+    def _email(cls, value: str) -> str:
+        value = value.strip().lower()
+        if "@" not in value or "." not in value.split("@")[-1]:
+            raise ValueError("Enter a valid email address.")
+        return value
+
 
 class UserLogin(BaseModel):
-    email: str
-    password: str
+    email: str = Field(..., min_length=3, max_length=100)
+    password: str = Field(..., min_length=1, max_length=200)
+
+    @field_validator("email")
+    @classmethod
+    def _email(cls, value: str) -> str:
+        return value.strip().lower()
+
 
 class ForgotPasswordRequest(BaseModel):
-    email: str
+    email: str = Field(..., min_length=3, max_length=100)
+
+    @field_validator("email")
+    @classmethod
+    def _email(cls, value: str) -> str:
+        return value.strip().lower()
+
 
 class ResetPasswordRequest(BaseModel):
-    email: str
-    otp: str
-    new_password: str
+    email: str = Field(..., min_length=3, max_length=100)
+    otp: str = Field(..., min_length=4, max_length=10)
+    new_password: str = Field(..., min_length=4, max_length=200)
+
+    @field_validator("email")
+    @classmethod
+    def _email(cls, value: str) -> str:
+        return value.strip().lower()
+
 
 class SessionCreate(BaseModel):
-    crop_type: str
-    plot_name: str
-    area_cents: float
-    soil_type: str
-    location: str
-    seed_qty: float = 0.0
-    cost_per_seed: float = 0.0
-    total_land_cost: float = 0.0
-    fertilizer_qty: float = 0.0
-    cost_per_fertilizer: float = 0.0
+    crop_type: str = Field(..., min_length=2, max_length=50)
+    plot_name: str = Field(..., min_length=1, max_length=100)
+    area_cents: float = Field(..., ge=0)
+    soil_type: str = Field(..., min_length=2, max_length=50)
+    location: str = Field(..., min_length=2, max_length=100)
+    seed_qty: float = Field(0.0, ge=0)
+    cost_per_seed: float = Field(0.0, ge=0)
+    total_land_cost: float = Field(0.0, ge=0)
+    fertilizer_qty: float = Field(0.0, ge=0)
+    cost_per_fertilizer: float = Field(0.0, ge=0)
+
 
 class DailyLogCreate(BaseModel):
-    watered: bool
-    water_reason: str = ""
-    fertilized: bool
-    fertilizer_amount: float = 0.0
-    weather_condition: str = ""
-    notes: str = ""
+    watered: bool = False
+    water_reason: str = Field("", max_length=200)
+    fertilized: bool = False
+    fertilizer_amount: float = Field(0.0, ge=0)
+    weather_condition: str = Field("", max_length=100)
+    notes: str = Field("", max_length=1000)
+
 
 class HarvestCreate(BaseModel):
-    harvest_yield: float
-    market_price: float
+    harvest_yield: float = Field(..., ge=0)
+    market_price: float = Field(..., ge=0)
+
 
 class AnimalSessionCreate(BaseModel):
-    animal_type: str
-    session_name: str
-    animal_count: int
-    cost_per_animal: float
-    initial_food_qty: float
-    cost_per_food_qty: float
-    medicine_cost: float
-    shelter_cost: float
+    animal_type: str = Field(..., min_length=2, max_length=50)
+    session_name: str = Field(..., min_length=1, max_length=100)
+    animal_count: int = Field(..., ge=1)
+    cost_per_animal: float = Field(..., ge=0)
+    initial_food_qty: float = Field(0.0, ge=0)
+    cost_per_food_qty: float = Field(0.0, ge=0)
+    medicine_cost: float = Field(0.0, ge=0)
+    shelter_cost: float = Field(0.0, ge=0)
+
 
 class AnimalDailyLogCreate(BaseModel):
-    food_given_qty: float
-    food_cost_today: float
-    yield_amount: float
-    yield_selling_price: float
-    medicine_given: bool
-    medicine_name: Optional[str] = None
-    medicine_cost: float = 0.0
-    medicine_reason: Optional[str] = None
-    deaths_today: int = 0
-    notes: Optional[str] = None
+    food_given_qty: float = Field(0.0, ge=0)
+    food_cost_today: float = Field(0.0, ge=0)
+    yield_amount: float = Field(0.0, ge=0)
+    yield_selling_price: float = Field(0.0, ge=0)
+    medicine_given: bool = False
+    medicine_name: Optional[str] = Field(None, max_length=100)
+    medicine_cost: float = Field(0.0, ge=0)
+    medicine_reason: Optional[str] = Field(None, max_length=200)
+    deaths_today: int = Field(0, ge=0)
+    notes: Optional[str] = Field(None, max_length=1000)
+
 
 class AnimalSessionClose(BaseModel):
-    animals_sold: int
-    sell_price_per_animal: float
+    animals_sold: int = Field(..., ge=0)
+    sell_price_per_animal: float = Field(..., ge=0)
 
-app = FastAPI(title="Smart Farm API")
+
+class NotifyRequest(BaseModel):
+    email: str = Field(..., min_length=5, max_length=100)
+
+    @field_validator("email")
+    @classmethod
+    def _email(cls, value: str) -> str:
+        value = value.strip().lower()
+        if "@" not in value:
+            raise ValueError("Enter a valid email address.")
+        return value
+
+
+# ==========================================================================
+# Application lifecycle
+# ==========================================================================
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Startup: database + migrations, then optional model warm-up."""
+    report = init_db()
+    if report.get("applied"):
+        api_logger.info("Database migrations applied: %s", json.dumps(report.get("details", {}), default=str))
+    else:
+        api_logger.info("Database ready (no pending migrations)")
+    api_logger.info("Database file: %s", settings.database_path)
+
+    if settings.ml_warmup_on_startup:
+        try:
+            load_or_download_model()
+            api_logger.info("ML model ready: %s", model_info())
+        except Exception as exc:  # noqa: BLE001 - the API must still start
+            api_logger.error("ML model warm-up failed (disease endpoint retries lazily): %s", exc)
+
+    api_logger.info("%s v%s started (env=%s)", settings.app_name, settings.app_version, settings.app_env)
+    yield
+    api_logger.info("Application shutting down")
+
+
+app = FastAPI(
+    title="Smart Farm - Agricultural Decision Intelligence API",
+    description=(
+        "AI-Powered Agricultural Decision Intelligence System for Precision Farming: "
+        "plant disease detection, weather-aware advisory, farm analytics and clearly "
+        "labelled demonstration market data."
+    ),
+    version=settings.app_version,
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-User-Id"],
 )
 
-@app.on_event("startup")
-def startup_event():
-    init_db()
-    try:
-        load_or_download_model()
-    except Exception as e:
-        print(f"Warning: Failed to load ML model on startup: {e}")
 
-@app.get("/api/health")
+@app.middleware("http")
+async def timing_middleware(request: Request, call_next):
+    """Record latency, log slow requests and server errors (no secrets)."""
+    started = time.perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    response.headers["X-Process-Time-Ms"] = f"{elapsed_ms:.1f}"
+    if response.status_code >= 500:
+        api_logger.error("%s %s -> %s in %.1fms", request.method, request.url.path, response.status_code, elapsed_ms)
+    elif elapsed_ms > 4000:
+        api_logger.warning("Slow request %s %s -> %s in %.1fms", request.method, request.url.path, response.status_code, elapsed_ms)
+    return response
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Generic response; full detail stays in the redacted log."""
+    api_logger.exception("Unhandled error on %s %s: %s", request.method, request.url.path, exc)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error. Check the server logs."})
+
+
+# ==========================================================================
+# System endpoints
+# ==========================================================================
+@app.get("/api/health", tags=["System"])
 def health_check():
-    return {"status": "ok"}
+    return {"status": "ok", "version": settings.app_version, "environment": settings.app_env}
 
-@app.post("/api/auth/register")
+
+@app.get("/api/system/info", tags=["System"])
+def system_info():
+    """Public, secret-free runtime information (useful for the paper's setup section)."""
+    return {
+        "app_name": settings.app_name,
+        "settings": settings.as_public_dict(),
+        "ml": model_info(),
+        "email_configured": email_configured(),
+        "weather_configured": bool(settings.openweather_api_key),
+    }
+
+
+@app.get("/api/crops", tags=["System"])
+def list_crops():
+    """Canonical crop vocabulary plus the crops with documented requirements."""
+    return {
+        "supported_crops": supported_crops(),
+        "canonical_crops": canonical_crops(),
+    }
+
+
+# ==========================================================================
+# Authentication
+# ==========================================================================
+def _issue_token(user: User) -> str:
+    return create_access_token(user.id, user.email, user.name or "")
+
+
+def _user_payload(user: User) -> Dict[str, Any]:
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+    }
+
+
+def _otp_digest(user_id: int, otp: str) -> str:
+    """OTP is stored as a hash, never in plaintext (Phase 2 hardening)."""
+    return hashlib.sha256(f"smartfarm:{user_id}:{otp}".encode("utf-8")).hexdigest()
+
+
+@app.post("/api/auth/register", tags=["Authentication"], dependencies=[Depends(rate_limit("register", 20))])
 def register_endpoint(user_data: UserRegister, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.email == user_data.email.lower()).first()
-    if existing:
+    password_error = validate_password_strength(user_data.password)
+    if password_error:
+        raise HTTPException(status_code=400, detail=password_error)
+
+    if db.query(User).filter(User.email == user_data.email).first():
         raise HTTPException(status_code=400, detail="An account with this email already exists.")
-    
-    hashed = hash_password(user_data.password)
+
     user = User(
-        name=user_data.name,
-        email=user_data.email.lower(),
-        hashed_password=hashed
+        name=user_data.name.strip(),
+        email=user_data.email,
+        hashed_password=hash_password(user_data.password),
     )
     db.add(user)
     db.commit()
     db.refresh(user)
+    api_logger.info("New account registered: id=%s", user.id)
     return {
         "status": "success",
         "message": "Account created successfully!",
-        "user": {"id": user.id, "name": user.name, "email": user.email}
+        "user": _user_payload(user),
+        "access_token": _issue_token(user),
+        "token_type": "bearer",
+        "expires_in_minutes": settings.access_token_expire_minutes,
     }
 
-@app.post("/api/auth/login")
+
+@app.post("/api/auth/login", tags=["Authentication"], dependencies=[Depends(rate_limit("login", 10))])
 def login_endpoint(user_data: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == user_data.email.lower()).first()
-    if not user or user.hashed_password != hash_password(user_data.password):
+    user = db.query(User).filter(User.email == user_data.email).first()
+    if not user or not verify_password(user_data.password, user.hashed_password):
+        api_logger.warning("Failed login attempt for %s", user_data.email)
         raise HTTPException(status_code=400, detail="Invalid email or password.")
-        
+
+    if needs_rehash(user.hashed_password):
+        user.hashed_password = hash_password(user_data.password)
+        db.commit()
+        api_logger.info("Upgraded legacy password hash to bcrypt for user id=%s", user.id)
+
     return {
         "status": "success",
         "message": "Logged in successfully!",
-        "user": {"id": user.id, "name": user.name, "email": user.email, "created_at": user.created_at.isoformat() if user.created_at else None}
+        "user": _user_payload(user),
+        "access_token": _issue_token(user),
+        "token_type": "bearer",
+        "expires_in_minutes": settings.access_token_expire_minutes,
     }
 
-@app.post("/api/auth/forgot-password")
-def forgot_password_endpoint(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == request.email.lower()).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="No account found with this email.")
-        
-    # Generate 6-digit OTP
-    otp = f"{random.randint(100000, 999999)}"
-    user.otp = otp
-    user.otp_expiry = datetime.now() + timedelta(minutes=10)
-    db.commit()
-    
-    email_res = send_otp_email(user.email, otp)
-    if email_res["status"] == "error":
-        raise HTTPException(status_code=500, detail=f"Failed to send OTP email: {email_res['message']}")
-        
-    return {"status": "success", "message": "OTP has been sent to your email."}
 
-@app.post("/api/auth/reset-password")
+@app.get("/api/auth/me", tags=["Authentication"])
+def me_endpoint(current_user: User = Depends(get_current_user)):
+    return {"status": "success", "user": _user_payload(current_user), "auth_method": "bearer-token"}
+
+
+@app.post("/api/auth/forgot-password", tags=["Authentication"], dependencies=[Depends(rate_limit("forgot", 5))])
+def forgot_password_endpoint(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    generic = {"status": "success", "message": "If that email is registered, a reset code has been sent."}
+    user = db.query(User).filter(User.email == request.email).first()
+    if not user:
+        # Generic response prevents account enumeration (PROJECT_AUDIT.md §10 S9)
+        api_logger.info("Forgot-password requested for an unknown email (response kept generic)")
+        return generic
+
+    import random
+
+    otp = "".join(str(random.randint(0, 9)) for _ in range(settings.otp_length))
+    user.otp = _otp_digest(user.id, otp)
+    user.otp_expiry = datetime.utcnow() + timedelta(minutes=settings.otp_expiry_minutes)
+    user.otp_attempts = 0
+    db.commit()
+
+    result = send_otp_email(user.email, otp)
+    if result.get("status") == "error":
+        raise HTTPException(status_code=500, detail=result.get("message", "Could not send the reset email."))
+    return generic
+
+
+@app.post("/api/auth/reset-password", tags=["Authentication"], dependencies=[Depends(rate_limit("reset", 10))])
 def reset_password_endpoint(request: ResetPasswordRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == request.email.lower()).first()
+    user = db.query(User).filter(User.email == request.email).first()
     if not user or not user.otp:
-        raise HTTPException(status_code=400, detail="Invalid request.")
-        
-    if user.otp != request.otp:
-        raise HTTPException(status_code=400, detail="Incorrect OTP.")
-        
-    if datetime.now() > user.otp_expiry:
-        raise HTTPException(status_code=400, detail="OTP has expired.")
-        
-    # Valid OTP. Update password
+        raise HTTPException(status_code=400, detail="Invalid or expired reset code.")
+
+    if (user.otp_attempts or 0) >= settings.otp_max_attempts:
+        raise HTTPException(status_code=429, detail="Too many incorrect attempts. Request a new reset code.")
+
+    if not user.otp_expiry or datetime.utcnow() > user.otp_expiry:
+        raise HTTPException(status_code=400, detail="Reset code has expired. Request a new one.")
+
+    if user.otp != _otp_digest(user.id, request.otp):
+        user.otp_attempts = (user.otp_attempts or 0) + 1
+        db.commit()
+        raise HTTPException(status_code=400, detail="Incorrect reset code.")
+
+    password_error = validate_password_strength(request.new_password)
+    if password_error:
+        raise HTTPException(status_code=400, detail=password_error)
+
     user.hashed_password = hash_password(request.new_password)
     user.otp = None
     user.otp_expiry = None
+    user.otp_attempts = 0
     db.commit()
-    
+    api_logger.info("Password reset completed for user id=%s", user.id)
     return {"status": "success", "message": "Password updated successfully! You can now log in."}
 
-@app.get("/api/auth/user-stats")
-def get_user_stats(x_user_id: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    if not x_user_id:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    u_id = int(x_user_id)
-    
-    plant_count = db.query(FarmingSession).filter(FarmingSession.user_id == u_id).count()
-    active_plant = db.query(FarmingSession).filter(FarmingSession.user_id == u_id, FarmingSession.is_active == True).count()
-    animal_count = db.query(AnimalSession).filter(AnimalSession.user_id == u_id).count()
-    active_animal = db.query(AnimalSession).filter(AnimalSession.user_id == u_id, AnimalSession.is_active == True).count()
-    predictions = db.query(DiseasePrediction).filter(DiseasePrediction.user_id == u_id).count()
-    
+
+@app.get("/api/auth/user-stats", tags=["Authentication"])
+def get_user_stats(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    uid = current_user.id
     return {
-        "plant_count": plant_count,
-        "active_plant": active_plant,
-        "animal_count": animal_count,
-        "active_animal": active_animal,
-        "predictions": predictions
+        "plant_count": db.query(FarmingSession).filter(FarmingSession.user_id == uid).count(),
+        "active_plant": db.query(FarmingSession).filter(FarmingSession.user_id == uid, FarmingSession.is_active == True).count(),  # noqa: E712
+        "animal_count": db.query(AnimalSession).filter(AnimalSession.user_id == uid).count(),
+        "active_animal": db.query(AnimalSession).filter(AnimalSession.user_id == uid, AnimalSession.is_active == True).count(),  # noqa: E712
+        "predictions": db.query(DiseasePrediction).filter(DiseasePrediction.user_id == uid).count(),
     }
 
-@app.post("/api/predict/disease")
+
+# ==========================================================================
+# Plant disease detection
+# ==========================================================================
+MAX_UPLOAD_NOTE = f"Maximum upload size is {settings.max_upload_bytes // (1024 * 1024)} MB."
+
+
+def _validate_upload(image: UploadFile) -> None:
+    """Content-type + extension validation (Phase 2 hardening)."""
+    if image is None or not image.filename:
+        raise HTTPException(status_code=400, detail="No image file was provided.")
+
+    content_type = (image.content_type or "").lower()
+    if content_type not in settings.allowed_image_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{content_type or 'unknown'}'. Allowed: {', '.join(settings.allowed_image_types)}.",
+        )
+
+    filename = image.filename.lower()
+    if not any(filename.endswith(ext) for ext in settings.allowed_image_extensions):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file extension. Allowed: {', '.join(settings.allowed_image_extensions)}.",
+        )
+
+
+async def _read_upload_limited(image: UploadFile) -> bytes:
+    """Read the upload with a hard size cap so a huge file cannot exhaust memory."""
+    chunks: List[bytes] = []
+    total = 0
+    while True:
+        chunk = await image.read(1024 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > settings.max_upload_bytes:
+            raise HTTPException(status_code=413, detail=f"Image is too large. {MAX_UPLOAD_NOTE}")
+        chunks.append(chunk)
+    if total == 0:
+        raise HTTPException(status_code=400, detail="The uploaded file is empty.")
+    return b"".join(chunks)
+
+
+@app.post("/api/predict/disease", tags=["Disease detection"])
 async def predict_disease_endpoint(
     image: UploadFile = File(...),
     crop_type: str = Form("Unknown"),
     symptoms: str = Form(""),
     location: str = Form("Tamil Nadu, India"),
-    x_user_id: Optional[str] = Header(None),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    if not image.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
-        
-    image_bytes = await image.read()
-    
+    """
+    Classify a leaf image and return top-k predictions plus advisory steps.
+
+    Low-confidence results are flagged (``status: "uncertain"``) instead of being
+    reported as a disease - Version 1 returned a confident label for any image.
+    """
+    _validate_upload(image)
+    image_bytes = await _read_upload_limited(image)
+
     try:
-        prediction = predict_image(image_bytes)
-    except Exception as e:
-        import traceback
-        with open("error.log", "w") as f:
-            f.write(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"ML Prediction failed: {e}")
+        result = predict_image(image_bytes)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:  # noqa: BLE001 - model/runtime failure
+        api_logger.exception("Prediction failed for user %s: %s", current_user.id, exc)
+        raise HTTPException(status_code=500, detail="Disease prediction failed. Please retry.")
 
-    detections = prediction.get("detections", [])
-    annotated_image = prediction.get("annotated_image_base64", "")
-    
-    # Use top detection for cure and DB stats
-    if detections:
-        top_detection = detections[0]
-        disease_name = top_detection["label"]
-        confidence_score = top_detection["score"]
-        is_healthy = False
-        severity = "Severe" if confidence_score > 90 else ("Moderate" if confidence_score > 70 else "Mild")
-    else:
-        disease_name = "Healthy"
-        confidence_score = 100.0
-        is_healthy = True
-        severity = "None"
+    canonical_crop = normalize_crop_type(crop_type)
+    disease_name = result["top_label"]
+    is_healthy = bool(result["is_healthy"])
+    severity = "None" if is_healthy else result["severity"]
+    confidence_score = float(result["top_score"])
 
-    cure = get_cure_for_disease(disease_name, crop_type, location)
+    cure = get_cure_for_disease(disease_name, canonical_crop, location)
 
-    db_record = DiseasePrediction(
-        user_id=int(x_user_id) if x_user_id else None,
-        crop_type=crop_type,
-        symptoms=symptoms,
+    record = DiseasePrediction(
+        user_id=current_user.id,
+        crop_type=canonical_crop,
+        symptoms=(symptoms or "")[:2000],
         location=location,
         disease_name=disease_name,
         confidence_score=confidence_score,
         is_healthy=is_healthy,
         severity=severity,
-        cure_data=json.dumps(cure)
+        cure_data=json.dumps(cure),
+        created_at=datetime.utcnow(),
     )
-    db.add(db_record)
+    db.add(record)
     db.commit()
-    db.refresh(db_record)
+    db.refresh(record)
+
+    api_logger.info(
+        "Prediction id=%s user=%s label=%s score=%.2f status=%s in %sms (%s)",
+        record.id, current_user.id, disease_name, confidence_score,
+        result["status"], result["inference_ms"], result["device"],
+    )
 
     return {
         "prediction": {
-            "id": db_record.id,
+            "id": record.id,
             "disease_name": disease_name,
             "confidence_score": confidence_score,
             "is_healthy": is_healthy,
             "severity": severity,
-            "detections": detections,
-            "annotated_image_base64": annotated_image
+            "status": result["status"],
+            "confident": result["confident"],
+            "requires_expert_review": result["requires_expert_review"],
+            "confidence_floor": result["confidence_floor"],
+            "detections": result["detections"],
+            "annotated_image_base64": result["annotated_image_base64"],
+            "annotation_type": result["annotation_type"],
+            "inference_ms": result["inference_ms"],
+            "device": result["device"],
+            "created_at": record.created_at.isoformat() if record.created_at else None,
+            "crop_type": canonical_crop,
         },
-        "cure": cure
+        "cure": cure,
+        "cure_source": cure[0]["source"] if cure else "unknown",
+        "notice": (
+            "Low confidence: the model is not certain about this image. Capture a clearer close-up "
+            "leaf photo in daylight, or consult an expert."
+            if not result["confident"]
+            else None
+        ),
     }
 
-@app.get("/api/sessions")
-def list_sessions(x_user_id: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    query = db.query(FarmingSession)
-    if x_user_id:
-        query = query.filter(FarmingSession.user_id == int(x_user_id))
-    sessions = query.all()
-    return sessions
 
-@app.post("/api/sessions")
-def create_session(session_data: SessionCreate, x_user_id: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    db_record = FarmingSession(
-        user_id=int(x_user_id) if x_user_id else None,
-        crop_type=session_data.crop_type,
-        plot_name=session_data.plot_name,
+@app.get("/api/predictions", tags=["Disease detection"])
+def list_predictions(
+    limit: int = 20,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Detection history for the authenticated user (now timestamped)."""
+    limit = max(1, min(int(limit or 20), 200))
+    rows = (
+        db.query(DiseasePrediction)
+        .filter(DiseasePrediction.user_id == current_user.id)
+        .order_by(DiseasePrediction.created_at.desc(), DiseasePrediction.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return {
+        "count": len(rows),
+        "items": [
+            {
+                "id": row.id,
+                "crop_type": row.crop_type,
+                "disease_name": row.disease_name,
+                "confidence_score": row.confidence_score,
+                "is_healthy": row.is_healthy,
+                "severity": row.severity,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "location": row.location,
+            }
+            for row in rows
+        ],
+    }
+
+
+@app.get("/api/predictions/stats", tags=["Disease detection"])
+def prediction_stats(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Aggregate detection statistics (healthy vs diseased, per crop)."""
+    rows = db.query(DiseasePrediction).filter(DiseasePrediction.user_id == current_user.id).all()
+    by_crop: Dict[str, int] = {}
+    for row in rows:
+        by_crop[row.crop_type or "Unknown"] = by_crop.get(row.crop_type or "Unknown", 0) + 1
+    healthy = sum(1 for row in rows if row.is_healthy)
+    return {
+        "total": len(rows),
+        "healthy": healthy,
+        "diseased": len(rows) - healthy,
+        "by_crop": by_crop,
+        "avg_confidence": round(sum(float(row.confidence_score or 0) for row in rows) / len(rows), 2) if rows else 0.0,
+    }
+
+
+# ==========================================================================
+# Plant (crop) farm management
+# ==========================================================================
+@app.get("/api/sessions", tags=["Plant farm"])
+def list_sessions(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """List the authenticated user's farming sessions."""
+    return (
+        db.query(FarmingSession)
+        .filter(FarmingSession.user_id == current_user.id)
+        .order_by(FarmingSession.id.desc())
+        .all()
+    )
+
+
+@app.post("/api/sessions", tags=["Plant farm"])
+def create_session(
+    session_data: SessionCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    canonical_crop = normalize_crop_type(session_data.crop_type)
+    record = FarmingSession(
+        user_id=current_user.id,
+        crop_type=canonical_crop,
+        plot_name=session_data.plot_name.strip(),
         area_cents=session_data.area_cents,
-        soil_type=session_data.soil_type,
-        location=session_data.location,
+        soil_type=session_data.soil_type.strip(),
+        location=session_data.location.strip(),
         seed_qty=session_data.seed_qty,
         cost_per_seed=session_data.cost_per_seed,
         total_land_cost=session_data.total_land_cost,
         fertilizer_qty=session_data.fertilizer_qty,
         cost_per_fertilizer=session_data.cost_per_fertilizer,
         is_active=True,
-        created_at=datetime.now().isoformat()
+        created_at=datetime.now().isoformat(),
     )
-    db.add(db_record)
+    db.add(record)
     db.commit()
-    db.refresh(db_record)
-    return {"status": "success", "session_id": db_record.id, "message": "Farming session created"}
+    db.refresh(record)
+    api_logger.info("Farming session %s created for user %s (%s)", record.id, current_user.id, canonical_crop)
+    return {
+        "status": "success",
+        "session_id": record.id,
+        "message": "Farming session created",
+        "crop_supported": is_crop_supported(canonical_crop),
+        "crop_type": canonical_crop,
+    }
 
-@app.post("/api/sessions/{session_id}/daily_logs")
-def create_daily_log(session_id: int, log_data: DailyLogCreate, db: Session = Depends(get_db)):
-    session = db.query(FarmingSession).filter(FarmingSession.id == session_id).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-        
-    db_log = DailyLog(
+
+@app.post("/api/sessions/{session_id}/daily_logs", tags=["Plant farm"])
+def create_daily_log(
+    session_id: int,
+    log_data: DailyLogCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Add a daily farm log. Ownership is enforced (Version 1 had no check)."""
+    get_owned_plant_session(session_id, current_user, db)
+    record = DailyLog(
         session_id=session_id,
         date=datetime.now().isoformat(),
         watered=log_data.watered,
-        water_reason=log_data.water_reason,
+        water_reason=log_data.water_reason[:200],
         fertilized=log_data.fertilized,
         fertilizer_amount=log_data.fertilizer_amount,
-        weather_condition=log_data.weather_condition,
-        notes=log_data.notes
+        weather_condition=log_data.weather_condition[:100],
+        notes=log_data.notes[:1000],
     )
-    db.add(db_log)
+    db.add(record)
     db.commit()
-    return {"status": "success", "message": "Daily log added"}
+    db.refresh(record)
+    return {"status": "success", "log_id": record.id, "message": "Daily log added"}
 
-@app.get("/api/sessions/{session_id}/daily_logs")
-def get_daily_logs(session_id: int, db: Session = Depends(get_db)):
-    logs = db.query(DailyLog).filter(DailyLog.session_id == session_id).all()
-    return logs
 
-@app.post("/api/sessions/{session_id}/harvest")
-def harvest_session(session_id: int, harvest_data: HarvestCreate, db: Session = Depends(get_db)):
-    session = db.query(FarmingSession).filter(FarmingSession.id == session_id).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-        
+@app.get("/api/sessions/{session_id}/daily_logs", tags=["Plant farm"])
+def get_daily_logs(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    get_owned_plant_session(session_id, current_user, db)
+    return db.query(DailyLog).filter(DailyLog.session_id == session_id).order_by(DailyLog.id.desc()).all()
+
+
+@app.post("/api/sessions/{session_id}/harvest", tags=["Plant farm"])
+def harvest_session(
+    session_id: int,
+    harvest_data: HarvestCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Close a plant session with the realised yield and market price."""
+    session = get_owned_plant_session(session_id, current_user, db)
     session.is_active = False
     session.harvest_yield = harvest_data.harvest_yield
     session.market_price = harvest_data.market_price
+    session.ended_at = datetime.utcnow()
     db.commit()
-    return {"status": "success", "message": "Session harvested successfully"}
+    revenue = round(harvest_data.harvest_yield * harvest_data.market_price, 2)
+    api_logger.info("Session %s harvested (yield=%s, revenue=%s)", session_id, harvest_data.harvest_yield, revenue)
+    return {"status": "success", "message": "Session harvested successfully", "revenue": revenue}
 
-# ==========================================
-# Animal Farm API
-# ==========================================
 
-@app.post("/api/animals")
-def create_animal_session(session_data: AnimalSessionCreate, x_user_id: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    new_session = AnimalSession(
-        user_id=int(x_user_id) if x_user_id else None,
-        **session_data.dict()
+@app.get("/api/sessions/{session_id}/weather", tags=["Plant farm"])
+def get_session_weather(
+    session_id: int,
+    days: int = 5,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Current weather + forecast for the session location.
+
+    ``current`` carries ``data_source``/``simulated`` flags so the UI and the
+    paper can distinguish live values from labelled fallbacks.
+    """
+    session = get_owned_plant_session(session_id, current_user, db)
+    try:
+        current = get_current_weather(session.location)
+        forecast = get_forecast(session.location, days=max(1, min(days, 5)))
+    except WeatherUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+    return {
+        "location": session.location,
+        "current": current,
+        "forecast": forecast,
+        "disease_risk_forecast": assess_forecast_risk(forecast),
+    }
+
+
+@app.get("/api/sessions/{session_id}/recommendations", tags=["Advisory"])
+def get_session_recommendations(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Watering + fertilizing + disease-risk advisory for a session.
+
+    Soil moisture is an explicit **estimate** (weather + soil type + irrigation
+    history) because no sensor is deployed; Version 1 used ``random.randint``,
+    which made two identical requests disagree.
+    """
+    session = get_owned_plant_session(session_id, current_user, db)
+
+    try:
+        current_weather = get_current_weather(session.location)
+        forecast_days = get_forecast(session.location, days=5)
+    except WeatherUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+    forecast_24h = forecast_days[0] if forecast_days else {"rain_probability": None, "simulated": True}
+    today_key = datetime.now().date().isoformat()
+    logs = db.query(DailyLog).filter(DailyLog.session_id == session_id).all()
+    watered_today = any(to_date_key(log.date) == today_key and log.watered for log in logs)
+    last_dates = sorted((to_date_key(log.date) for log in logs), reverse=True)
+    if last_dates:
+        try:
+            days_since_watering = max(1, (datetime.now().date() - datetime.fromisoformat(last_dates[0]).date()).days + 1)
+        except ValueError:
+            days_since_watering = 1
+    else:
+        days_since_watering = 1
+
+    moisture = estimate_soil_moisture(
+        soil_type=session.soil_type,
+        watered_today=watered_today,
+        rain_probability=forecast_24h.get("rain_probability"),
+        temperature=current_weather.get("temperature") or 25,
+        days_since_watering=days_since_watering,
     )
-    db.add(new_session)
+    soil_moisture = moisture["value"]
+
+    watering = generate_watering_recommendation(
+        crop_type=session.crop_type,
+        current_weather=current_weather,
+        forecast_24h=forecast_24h,
+        soil_type=session.soil_type,
+        soil_moisture=soil_moisture,
+        session_id=session.id,
+        soil_moisture_source=moisture["source"],
+    )
+    fertilizing = generate_fertilizing_recommendation(
+        crop_type=session.crop_type,
+        current_weather=current_weather,
+        forecast_24h=forecast_24h,
+        soil_moisture=soil_moisture,
+        soil_moisture_source=moisture["source"],
+    )
+    disease_risk = assess_disease_risk(
+        humidity=current_weather.get("humidity") or 60,
+        temperature=current_weather.get("temperature") or 25,
+    )
+
+    for recommendation in (watering, fertilizing):
+        db.add(
+            RecommendationLog(
+                session_id=session.id,
+                date=datetime.now().isoformat(),
+                action_type=recommendation["action"],
+                recommendation=recommendation["recommendation"],
+                reason=recommendation["reason"],
+            )
+        )
     db.commit()
-    db.refresh(new_session)
-    return {"status": "success", "session_id": new_session.id}
 
-@app.get("/api/animals")
-def get_animal_sessions(x_user_id: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    query = db.query(AnimalSession)
-    if x_user_id:
-        query = query.filter(AnimalSession.user_id == int(x_user_id))
-    sessions = query.all()
-    return sessions
+    return {
+        "session_id": session.id,
+        "crop_type": session.crop_type,
+        "crop_supported": is_crop_supported(session.crop_type),
+        "crop_requirement": get_crop_requirement(session.crop_type),
+        "location": session.location,
+        "current_weather": current_weather,
+        "forecast_24h": forecast_24h,
+        "soil_moisture": soil_moisture,
+        "soil_moisture_detail": moisture,
+        "watering": watering,
+        "fertilizing": fertilizing,
+        "disease_risk": disease_risk,
+        "disease_risk_forecast": assess_forecast_risk(forecast_days),
+        "et0_estimate": calculate_et0(
+            temp_celsius=current_weather.get("temperature") or 25,
+            solar_rad_mj=None,
+            temp_min=forecast_24h.get("temp_min"),
+        ),
+        "inputs_summary": {
+            "soil_moisture_source": moisture["source"],
+            "weather_source": current_weather.get("data_source"),
+            "method": "rule_based_decision_engine",
+        },
+    }
 
-@app.post("/api/animals/{session_id}/daily_logs")
-def add_animal_daily_log(session_id: int, log_data: AnimalDailyLogCreate, db: Session = Depends(get_db)):
-    session = db.query(AnimalSession).filter(AnimalSession.id == session_id).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-        
-    new_log = AnimalDailyLog(session_id=session_id, **log_data.dict())
-    db.add(new_log)
-    db.commit()
-    db.refresh(new_log)
-    return {"status": "success", "log_id": new_log.id}
 
-@app.get("/api/animals/{session_id}/daily_logs")
-def get_animal_daily_logs(session_id: int, db: Session = Depends(get_db)):
-    logs = db.query(AnimalDailyLog).filter(AnimalDailyLog.session_id == session_id).order_by(AnimalDailyLog.date.desc()).all()
-    return logs
+@app.post("/api/sessions/{session_id}/notify", tags=["Advisory"])
+def send_session_notification(
+    session_id: int,
+    request: NotifyRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Email the current advisory for a session (ownership enforced)."""
+    session = get_owned_plant_session(session_id, current_user, db)
 
-@app.post("/api/animals/{session_id}/close")
-def close_animal_session(session_id: int, close_data: AnimalSessionClose, db: Session = Depends(get_db)):
-    session = db.query(AnimalSession).filter(AnimalSession.id == session_id).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-        
-    session.is_active = False
-    session.animals_sold = close_data.animals_sold
-    session.sell_price_per_animal = close_data.sell_price_per_animal
-    session.total_sale_revenue = close_data.animals_sold * close_data.sell_price_per_animal
-    
-    db.commit()
-    return {"status": "success"}
+    try:
+        current_weather = get_current_weather(session.location)
+        forecast_days = get_forecast(session.location, days=1)
+    except WeatherUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
-@app.get("/api/animals/dashboard/summary")
-def get_animal_dashboard_summary(x_user_id: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    query = db.query(AnimalSession)
-    if x_user_id:
-        query = query.filter(AnimalSession.user_id == int(x_user_id))
-    sessions = query.all()
-    
+    forecast_24h = forecast_days[0] if forecast_days else {"rain_probability": None}
+    moisture = estimate_soil_moisture(
+        soil_type=session.soil_type,
+        watered_today=False,
+        rain_probability=forecast_24h.get("rain_probability"),
+        temperature=current_weather.get("temperature") or 25,
+    )
+    recommendations = {
+        "watering": generate_watering_recommendation(
+            session.crop_type, current_weather, forecast_24h, session.soil_type, moisture["value"], session.id,
+            soil_moisture_source=moisture["source"],
+        ),
+        "fertilizing": generate_fertilizing_recommendation(
+            session.crop_type, current_weather, forecast_24h, moisture["value"],
+            soil_moisture_source=moisture["source"],
+        ),
+        "disease_risk": assess_disease_risk(
+            current_weather.get("humidity") or 60, current_weather.get("temperature") or 25
+        ),
+    }
+
+    message = format_alert_message(session.plot_name, session.crop_type, recommendations)
+    result = send_email_alert(request.email, message)
+    if result.get("status") == "error":
+        raise HTTPException(status_code=500, detail=result.get("message", "Email delivery failed."))
+# ==========================================================================
+# Plant farm dashboards
+# ==========================================================================
+@app.get("/api/dashboard/summary", tags=["Dashboards"])
+def get_dashboard_summary(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Investment / yield / revenue / profit KPIs for the user's crop sessions."""
+    sessions = db.query(FarmingSession).filter(FarmingSession.user_id == current_user.id).all()
+
     total_investment = 0.0
     total_yield = 0.0
     total_revenue = 0.0
-    
-    for s in sessions:
-        # Initial Investment
-        investment = (s.animal_count * s.cost_per_animal) + \
-                     (s.initial_food_qty * s.cost_per_food_qty) + \
-                     s.medicine_cost + s.shelter_cost
-                     
-        # Daily Logs
-        logs = db.query(AnimalDailyLog).filter(AnimalDailyLog.session_id == s.id).all()
-        revenue = 0.0
-        
-        for log in logs:
-            investment += log.food_cost_today + log.medicine_cost
-            total_yield += log.yield_amount
-            revenue += (log.yield_amount * log.yield_selling_price)
-            
-        # Add the final sale revenue if closed
-        if not s.is_active and s.total_sale_revenue:
-            revenue += s.total_sale_revenue
-            
+
+    for session in sessions:
+        investment = (
+            (session.seed_qty or 0) * (session.cost_per_seed or 0)
+            + (session.total_land_cost or 0)
+            + (session.fertilizer_qty or 0) * (session.cost_per_fertilizer or 0)
+        )
+        for log in db.query(DailyLog).filter(DailyLog.session_id == session.id).all():
+            if log.fertilized:
+                investment += (log.fertilizer_amount or 0) * (session.cost_per_fertilizer or 0)
+
         total_investment += investment
-        total_revenue += revenue
-        
+        if not session.is_active and session.harvest_yield and session.market_price:
+            total_yield += session.harvest_yield
+            total_revenue += session.harvest_yield * session.market_price
+
     net_profit = total_revenue - total_investment
-    profit_margin = (net_profit / total_investment * 100) if total_investment > 0 else 0
-    
+    profit_margin = (net_profit / total_investment * 100) if total_investment > 0 else 0.0
+
     return {
         "total_investment": round(total_investment, 2),
         "total_yield": round(total_yield, 2),
@@ -433,98 +925,329 @@ def get_animal_dashboard_summary(x_user_id: Optional[str] = Header(None), db: Se
         "net_profit": round(net_profit, 2),
         "profit_margin_percent": round(profit_margin, 2),
         "active_sessions": len([s for s in sessions if s.is_active]),
-        "completed_sessions": len([s for s in sessions if not s.is_active])
+        "completed_sessions": len([s for s in sessions if not s.is_active]),
     }
 
-@app.get("/api/animals/dashboard/analytics")
-def get_animal_analytics(session_id: Optional[int] = None, x_user_id: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    query = db.query(AnimalSession)
-    if x_user_id:
-        query = query.filter(AnimalSession.user_id == int(x_user_id))
+
+@app.get("/api/dashboard/analytics", tags=["Dashboards"])
+def get_dashboard_analytics(
+    session_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Chart-ready aggregates: cost split, per-session performance, crop mix, timeline."""
+    query = db.query(FarmingSession).filter(FarmingSession.user_id == current_user.id)
     if session_id:
-        sessions = query.filter(AnimalSession.id == session_id).all()
-    else:
-        sessions = query.all()
-    
+        query = query.filter(FarmingSession.id == session_id)
+    sessions = query.all()
+
+    total_seeds_cost = 0.0
+    total_land_cost = 0.0
+    total_fertilizer_cost = 0.0
+    summary_investment = 0.0
+    summary_revenue = 0.0
+    summary_profit = 0.0
+    active_area_cents = 0.0
+    crop_distribution: Dict[str, float] = {}
+    timeline: Dict[str, Dict[str, float]] = {}
+    performance: List[Dict[str, Any]] = []
+
+    for session in sessions:
+        seed_cost = (session.seed_qty or 0) * (session.cost_per_seed or 0)
+        land_cost = session.total_land_cost or 0
+        fert_cost = (session.fertilizer_qty or 0) * (session.cost_per_fertilizer or 0)
+
+        crop = session.crop_type or "Unknown"
+        crop_distribution[crop] = crop_distribution.get(crop, 0.0) + (session.area_cents or 0)
+        if session.is_active:
+            active_area_cents += session.area_cents or 0
+
+        for log in db.query(DailyLog).filter(DailyLog.session_id == session.id).all():
+            date_key = to_date_key(log.date)
+            if not date_key:
+                continue
+            bucket = timeline.setdefault(date_key, {"water_events": 0.0, "fert_cost": 0.0})
+            if log.watered:
+                bucket["water_events"] += 1
+            if log.fertilized:
+                cost = (log.fertilizer_amount or 0) * (session.cost_per_fertilizer or 0)
+                fert_cost += cost
+                bucket["fert_cost"] += cost
+
+        total_seeds_cost += seed_cost
+        total_land_cost += land_cost
+        total_fertilizer_cost += fert_cost
+
+        investment = seed_cost + land_cost + fert_cost
+        harvest_yield = session.harvest_yield or 0.0
+        market_price = session.market_price or 0.0
+        revenue = harvest_yield * market_price
+        summary_investment += investment
+        summary_revenue += revenue
+        summary_profit += revenue - investment
+
+        performance.append(
+            {
+                "session_id": session.id,
+                "plot_name": f"{session.plot_name} {'(Active)' if session.is_active else '(Harvested)'}",
+                "crop_type": crop,
+                "area_cents": session.area_cents,
+                "investment": round(investment, 2),
+                "revenue": round(revenue, 2),
+                "profit": round(revenue - investment, 2),
+            }
+        )
+
+    performance.sort(key=lambda item: item["revenue"], reverse=True)
+
+    dates = sorted(timeline.keys())
+    cumulative_water: List[int] = []
+    cumulative_fert: List[float] = []
+    running_water = 0.0
+    running_fert = 0.0
+    for date_key in dates:
+        running_water += timeline[date_key]["water_events"]
+        running_fert += timeline[date_key]["fert_cost"]
+        cumulative_water.append(int(running_water))
+        cumulative_fert.append(round(running_fert, 2))
+
+    return {
+        "summary": {
+            "investment": round(summary_investment, 2),
+            "revenue": round(summary_revenue, 2),
+            "profit": round(summary_profit, 2),
+            "active_area": round(active_area_cents, 2),
+        },
+        "cost_breakdown": {
+            "labels": ["Seeds", "Land", "Fertilizer"],
+            "data": [round(total_seeds_cost, 2), round(total_land_cost, 2), round(total_fertilizer_cost, 2)],
+        },
+        "session_performance": performance,
+        "crop_distribution": {
+            "labels": list(crop_distribution.keys()),
+            "data": [round(value, 2) for value in crop_distribution.values()],
+        },
+        "resource_timeline": {
+            "dates": dates,
+            "water": cumulative_water,
+            "fertilizer": cumulative_fert,
+        },
+    }
+
+
+# ==========================================================================
+# Animal (livestock) farm management - preserved from Version 1
+# ==========================================================================
+@app.post("/api/animals", tags=["Animal farm"])
+def create_animal_session(
+    session_data: AnimalSessionCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    record = AnimalSession(
+        user_id=current_user.id,
+        animal_type=session_data.animal_type.strip().title(),
+        session_name=session_data.session_name.strip(),
+        animal_count=session_data.animal_count,
+        cost_per_animal=session_data.cost_per_animal,
+        initial_food_qty=session_data.initial_food_qty,
+        cost_per_food_qty=session_data.cost_per_food_qty,
+        medicine_cost=session_data.medicine_cost,
+        shelter_cost=session_data.shelter_cost,
+        is_active=True,
+        created_at=datetime.utcnow(),
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return {"status": "success", "session_id": record.id}
+
+
+@app.get("/api/animals", tags=["Animal farm"])
+def get_animal_sessions(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return (
+        db.query(AnimalSession)
+        .filter(AnimalSession.user_id == current_user.id)
+        .order_by(AnimalSession.id.desc())
+        .all()
+    )
+
+
+@app.post("/api/animals/{session_id}/daily_logs", tags=["Animal farm"])
+def add_animal_daily_log(
+    session_id: int,
+    log_data: AnimalDailyLogCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    get_owned_animal_session(session_id, current_user, db)
+    record = AnimalDailyLog(session_id=session_id, date=datetime.utcnow(), **log_data.model_dump())
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return {"status": "success", "log_id": record.id}
+
+
+@app.get("/api/animals/{session_id}/daily_logs", tags=["Animal farm"])
+def get_animal_daily_logs(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    get_owned_animal_session(session_id, current_user, db)
+    return (
+        db.query(AnimalDailyLog)
+        .filter(AnimalDailyLog.session_id == session_id)
+        .order_by(AnimalDailyLog.date.desc())
+        .all()
+    )
+
+
+@app.post("/api/animals/{session_id}/close", tags=["Animal farm"])
+def close_animal_session(
+    session_id: int,
+    close_data: AnimalSessionClose,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = get_owned_animal_session(session_id, current_user, db)
+    session.is_active = False
+    session.animals_sold = close_data.animals_sold
+    session.sell_price_per_animal = close_data.sell_price_per_animal
+    session.total_sale_revenue = close_data.animals_sold * close_data.sell_price_per_animal
+    session.ended_at = datetime.utcnow()
+    db.commit()
+    return {"status": "success", "total_sale_revenue": round(session.total_sale_revenue, 2)}
+
+
+@app.get("/api/animals/dashboard/summary", tags=["Dashboards"])
+def get_animal_dashboard_summary(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    sessions = db.query(AnimalSession).filter(AnimalSession.user_id == current_user.id).all()
+
+    total_investment = 0.0
+    total_yield = 0.0
+    total_revenue = 0.0
+
+    for session in sessions:
+        investment = (
+            session.animal_count * session.cost_per_animal
+            + session.initial_food_qty * session.cost_per_food_qty
+            + session.medicine_cost
+            + session.shelter_cost
+        )
+        revenue = 0.0
+        for log in db.query(AnimalDailyLog).filter(AnimalDailyLog.session_id == session.id).all():
+            investment += (log.food_cost_today or 0) + (log.medicine_cost or 0)
+            total_yield += log.yield_amount or 0
+            revenue += (log.yield_amount or 0) * (log.yield_selling_price or 0)
+
+        if not session.is_active and session.total_sale_revenue:
+            revenue += session.total_sale_revenue
+
+        total_investment += investment
+        total_revenue += revenue
+
+    net_profit = total_revenue - total_investment
+    profit_margin = (net_profit / total_investment * 100) if total_investment > 0 else 0.0
+
+    return {
+        "total_investment": round(total_investment, 2),
+        "total_yield": round(total_yield, 2),
+        "total_revenue": round(total_revenue, 2),
+        "net_profit": round(net_profit, 2),
+        "profit_margin_percent": round(profit_margin, 2),
+        "active_sessions": len([s for s in sessions if s.is_active]),
+        "completed_sessions": len([s for s in sessions if not s.is_active]),
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+@app.get("/api/animals/dashboard/analytics", tags=["Dashboards"])
+def get_animal_analytics(
+    session_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Chart-ready livestock aggregates (cost split, distribution, yield timeline)."""
+    query = db.query(AnimalSession).filter(AnimalSession.user_id == current_user.id)
+    if session_id:
+        query = query.filter(AnimalSession.id == session_id)
+    sessions = query.all()
+
     total_animal_cost = 0.0
     total_food_cost = 0.0
     total_med_cost = 0.0
     total_shelter_cost = 0.0
-    
-    performance = []
-    animal_distribution = {}
-    resource_timeline_dict = {}
-    
-    for s in sessions:
-        # Cost breakdown
-        initial_animal = s.animal_count * s.cost_per_animal
-        initial_food = s.initial_food_qty * s.cost_per_food_qty
-        
-        # Animal Distribution
-        if s.animal_type not in animal_distribution:
-            animal_distribution[s.animal_type] = 0
-        animal_distribution[s.animal_type] += s.animal_count
-        
+    animal_distribution: Dict[str, int] = {}
+    timeline: Dict[str, Dict[str, float]] = {}
+    performance: List[Dict[str, Any]] = []
+
+    for session in sessions:
+        initial_animal = session.animal_count * session.cost_per_animal
+        initial_food = session.initial_food_qty * session.cost_per_food_qty
+        animal_type = session.animal_type or "Unknown"
+        animal_distribution[animal_type] = animal_distribution.get(animal_type, 0) + session.animal_count
+
         total_animal_cost += initial_animal
         total_food_cost += initial_food
-        total_med_cost += s.medicine_cost
-        total_shelter_cost += s.shelter_cost
-        
-        logs = db.query(AnimalDailyLog).filter(AnimalDailyLog.session_id == s.id).all()
-        
+        total_med_cost += session.medicine_cost or 0
+        total_shelter_cost += session.shelter_cost or 0
+
+        logs = db.query(AnimalDailyLog).filter(AnimalDailyLog.session_id == session.id).all()
         for log in logs:
-            if isinstance(log.date, str):
-                date_str = log.date.split("T")[0].split(" ")[0]
-            else:
-                date_str = log.date.strftime("%Y-%m-%d")
-            if date_str not in resource_timeline_dict:
-                resource_timeline_dict[date_str] = {"yield": 0.0, "food_cost": 0.0}
-            resource_timeline_dict[date_str]["yield"] += log.yield_amount
-            resource_timeline_dict[date_str]["food_cost"] += log.food_cost_today
-        
-        daily_food = sum(log.food_cost_today for log in logs)
-        daily_med = sum(log.medicine_cost for log in logs)
-        
+            date_key = to_date_key(log.date)
+            if date_key:
+                bucket = timeline.setdefault(date_key, {"yield": 0.0, "food_cost": 0.0})
+                bucket["yield"] += log.yield_amount or 0
+                bucket["food_cost"] += log.food_cost_today or 0
+
+        daily_food = sum(log.food_cost_today or 0 for log in logs)
+        daily_med = sum(log.medicine_cost or 0 for log in logs)
         total_food_cost += daily_food
         total_med_cost += daily_med
-        
-        # Performance for all sessions (active and completed)
-        investment = initial_animal + initial_food + s.medicine_cost + s.shelter_cost + daily_food + daily_med
-        daily_revenue = sum((log.yield_amount * log.yield_selling_price) for log in logs)
-        total_yield = sum(log.yield_amount for log in logs)
-        final_sale_revenue = s.total_sale_revenue or 0.0
-        revenue = daily_revenue + final_sale_revenue
-        profit = revenue - investment
-        
-        status_label = "(Active)" if s.is_active else "(Ended)"
-        
-        performance.append({
-            "session_id": s.id,
-            "plot_name": f"{s.session_name} {status_label}",
-            "animal_count": s.animal_count,
-            "total_yield": round(total_yield, 2),
-            "investment": round(investment, 2),
-            "revenue": round(revenue, 2),
-            "profit": round(profit, 2)
-        })
-            
-    # Sort by yield descending for High Yield Board
-    performance.sort(key=lambda x: x["total_yield"], reverse=True)
-    
-    sorted_dates = sorted(list(resource_timeline_dict.keys()))
-    timeline_dates = []
-    cumulative_yield = []
-    cumulative_food_cost = []
-    
-    current_yield = 0.0
-    current_food = 0.0
-    for d in sorted_dates:
-        current_yield += resource_timeline_dict[d]["yield"]
-        current_food += resource_timeline_dict[d]["food_cost"]
-        timeline_dates.append(d)
-        cumulative_yield.append(round(current_yield, 2))
-        cumulative_food_cost.append(round(current_food, 2))
-            
+
+        investment = (
+            initial_animal + initial_food + (session.medicine_cost or 0) + (session.shelter_cost or 0) + daily_food + daily_med
+        )
+        daily_revenue = sum((log.yield_amount or 0) * (log.yield_selling_price or 0) for log in logs)
+        total_yield = sum(log.yield_amount or 0 for log in logs)
+        revenue = daily_revenue + (session.total_sale_revenue or 0.0)
+
+        performance.append(
+            {
+                "session_id": session.id,
+                "plot_name": f"{session.session_name} {'(Active)' if session.is_active else '(Ended)'}",
+                "animal_type": animal_type,
+                "animal_count": session.animal_count,
+                "total_yield": round(total_yield, 2),
+                "investment": round(investment, 2),
+                "revenue": round(revenue, 2),
+                "profit": round(revenue - investment, 2),
+            }
+        )
+
+    performance.sort(key=lambda item: item["total_yield"], reverse=True)
+
+    dates = sorted(timeline.keys())
+    cumulative_yield: List[float] = []
+    cumulative_food: List[float] = []
+    running_yield = 0.0
+    running_food = 0.0
+    for date_key in dates:
+        running_yield += timeline[date_key]["yield"]
+        running_food += timeline[date_key]["food_cost"]
+        cumulative_yield.append(round(running_yield, 2))
+        cumulative_food.append(round(running_food, 2))
+
     return {
         "cost_breakdown": {
             "labels": ["Animals", "Food", "Medicine", "Shelter"],
@@ -532,382 +1255,65 @@ def get_animal_analytics(session_id: Optional[int] = None, x_user_id: Optional[s
                 round(total_animal_cost, 2),
                 round(total_food_cost, 2),
                 round(total_med_cost, 2),
-                round(total_shelter_cost, 2)
-            ]
+                round(total_shelter_cost, 2),
+            ],
         },
         "session_performance": performance,
         "animal_distribution": {
             "labels": list(animal_distribution.keys()),
-            "data": list(animal_distribution.values())
+            "data": list(animal_distribution.values()),
         },
         "resource_timeline": {
-            "dates": timeline_dates,
+            "dates": dates,
             "yield": cumulative_yield,
-            "food_cost": cumulative_food_cost
-        }
-    }
-
-@app.get("/api/dashboard/summary")
-def get_dashboard_summary(x_user_id: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    query = db.query(FarmingSession)
-    if x_user_id:
-        query = query.filter(FarmingSession.user_id == int(x_user_id))
-    sessions = query.all()
-    
-    total_investment = 0.0
-    total_yield = 0.0
-    total_revenue = 0.0
-    
-    for s in sessions:
-        # Seed + Land + Initial Fertilizer
-        inv = (s.seed_qty * s.cost_per_seed) + s.total_land_cost + (s.fertilizer_qty * s.cost_per_fertilizer)
-        
-        # Add daily log fertilizers
-        logs = db.query(DailyLog).filter(DailyLog.session_id == s.id).all()
-        for log in logs:
-            if log.fertilized:
-                inv += (log.fertilizer_amount * s.cost_per_fertilizer)
-                
-        total_investment += inv
-        
-        if not s.is_active and s.harvest_yield and s.market_price:
-            total_yield += s.harvest_yield
-            total_revenue += (s.harvest_yield * s.market_price)
-            
-    net_profit = total_revenue - total_investment
-    profit_margin = (net_profit / total_investment * 100) if total_investment > 0 else 0.0
-    
-    return {
-        "total_investment": round(total_investment, 2),
-        "total_yield": round(total_yield, 2),
-        "total_revenue": round(total_revenue, 2),
-        "net_profit": round(net_profit, 2),
-        "profit_margin_percent": round(profit_margin, 2),
-        "active_sessions": len([s for s in sessions if s.is_active]),
-        "completed_sessions": len([s for s in sessions if not s.is_active])
-    }
-
-@app.get("/api/dashboard/analytics")
-def get_dashboard_analytics(session_id: Optional[int] = None, x_user_id: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    query = db.query(FarmingSession)
-    if x_user_id:
-        query = query.filter(FarmingSession.user_id == int(x_user_id))
-    if session_id:
-        sessions = query.filter(FarmingSession.id == session_id).all()
-    else:
-        sessions = query.all()
-    
-    # Cost Breakdown
-    total_seeds_cost = 0.0
-    total_land_cost = 0.0
-    total_fertilizer_cost = 0.0
-    
-    # Session Performance
-    performance = []
-    
-    # Detailed Analytics Aggregation
-    summary_investment = 0.0
-    summary_revenue = 0.0
-    summary_profit = 0.0
-    active_area_cents = 0.0
-    
-    crop_distribution = {}
-    resource_timeline_dict = {}
-    
-    for s in sessions:
-        seed_cost = s.seed_qty * s.cost_per_seed
-        land_cost = s.total_land_cost
-        fert_cost = s.fertilizer_qty * s.cost_per_fertilizer
-        
-        # Crop Distribution
-        if s.crop_type not in crop_distribution:
-            crop_distribution[s.crop_type] = 0.0
-        crop_distribution[s.crop_type] += s.area_cents
-        
-        if s.is_active:
-            active_area_cents += s.area_cents
-            
-        # Add daily log fertilizers and watering
-        logs = db.query(DailyLog).filter(DailyLog.session_id == s.id).all()
-        for log in logs:
-            date_str = log.date.split("T")[0] if "T" in log.date else log.date.split(" ")[0]
-            if date_str not in resource_timeline_dict:
-                resource_timeline_dict[date_str] = {"water_events": 0, "fert_cost": 0.0}
-            
-            if log.watered:
-                resource_timeline_dict[date_str]["water_events"] += 1
-                
-            if log.fertilized:
-                f_cost = log.fertilizer_amount * s.cost_per_fertilizer
-                fert_cost += f_cost
-                resource_timeline_dict[date_str]["fert_cost"] += f_cost
-                
-        total_seeds_cost += seed_cost
-        total_land_cost += land_cost
-        total_fertilizer_cost += fert_cost
-        
-        investment = seed_cost + land_cost + fert_cost
-        
-        harvest_yield = s.harvest_yield or 0.0
-        market_price = s.market_price or 0.0
-        revenue = harvest_yield * market_price
-        profit = revenue - investment
-        
-        summary_investment += investment
-        summary_revenue += revenue
-        summary_profit += profit
-        
-        status_label = "(Active)" if s.is_active else "(Harvested)"
-        
-        performance.append({
-            "session_id": s.id,
-            "plot_name": f"{s.plot_name} {status_label}",
-            "area_cents": s.area_cents,
-            "investment": round(investment, 2),
-            "revenue": round(revenue, 2),
-            "profit": round(profit, 2)
-        })
-            
-    # Sort performance by revenue descending for leaderboard
-    performance.sort(key=lambda x: x["revenue"], reverse=True)
-    
-    # Process timeline into lists sorted by date
-    sorted_dates = sorted(list(resource_timeline_dict.keys()))
-    timeline_dates = []
-    cumulative_water = []
-    cumulative_fert = []
-    
-    current_water = 0
-    current_fert = 0.0
-    for d in sorted_dates:
-        current_water += resource_timeline_dict[d]["water_events"]
-        current_fert += resource_timeline_dict[d]["fert_cost"]
-        timeline_dates.append(d)
-        cumulative_water.append(current_water)
-        cumulative_fert.append(round(current_fert, 2))
-            
-    return {
-        "summary": {
-            "investment": round(summary_investment, 2),
-            "revenue": round(summary_revenue, 2),
-            "profit": round(summary_profit, 2),
-            "active_area": round(active_area_cents, 2)
+            "food_cost": cumulative_food,
         },
-        "cost_breakdown": {
-            "labels": ["Seeds", "Land", "Fertilizer"],
-            "data": [round(total_seeds_cost, 2), round(total_land_cost, 2), round(total_fertilizer_cost, 2)]
-        },
-        "session_performance": performance,
-        "crop_distribution": {
-            "labels": list(crop_distribution.keys()),
-            "data": [round(v, 2) for v in crop_distribution.values()]
-        },
-        "resource_timeline": {
-            "dates": timeline_dates,
-            "water": cumulative_water,
-            "fertilizer": cumulative_fert
-        }
     }
 
-@app.get("/api/sessions/{session_id}/weather")
-def get_session_weather(session_id: int, db: Session = Depends(get_db)):
-    session = db.query(FarmingSession).filter(FarmingSession.id == session_id).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    current = get_current_weather(session.location)
-    return current
 
-@app.get("/api/sessions/{session_id}/recommendations")
-def get_session_recommendations(session_id: int, db: Session = Depends(get_db)):
-    session = db.query(FarmingSession).filter(FarmingSession.id == session_id).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-        
-    current_weather = get_current_weather(session.location)
-    forecast = get_forecast(session.location, days=1)[0] # get next 24h forecast
-    
-    # Normally we would get soil moisture from a sensor. Mocking it here.
-    import random
-    soil_moisture = random.randint(20, 80)
-    
-    watering = generate_watering_recommendation(
-        crop_type=session.crop_type,
-        current_weather=current_weather,
-        forecast_24h=forecast,
-        soil_type=session.soil_type,
-        soil_moisture=soil_moisture,
-        session_id=session.id
-    )
-    
-    fertilizing = generate_fertilizing_recommendation(
-        crop_type=session.crop_type,
-        current_weather=current_weather,
-        forecast_24h=forecast,
-        soil_moisture=soil_moisture
-    )
-    
-    disease_risk = assess_disease_risk(
-        humidity=current_weather["humidity"],
-        temperature=current_weather["temperature"]
-    )
-    
-    # Log the recommendations
-    for rec in [watering, fertilizing]:
-        log = RecommendationLog(
-            session_id=session.id,
-            date=datetime.now().isoformat(),
-            action_type=rec["action"],
-            recommendation=rec["recommendation"],
-            reason=rec["reason"]
-        )
-        db.add(log)
-    db.commit()
-    
-    return {
-        "current_weather": current_weather,
-        "soil_moisture": soil_moisture,
-        "watering": watering,
-        "fertilizing": fertilizing,
-        "disease_risk": disease_risk
-    }
+# ==========================================================================
+# Market intelligence (demonstration data - clearly labelled)
+# ==========================================================================
+@app.get("/api/market/intelligence", tags=["Market"])
+def get_market_intelligence(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Commodity overview for the user's crops and livestock.
 
-class NotifyRequest(BaseModel):
-    email: str
+    Values are SIMULATED demonstration values (deterministic per commodity/day)
+    because no live mandi feed is integrated. Every record carries
+    ``data_source: "simulated"`` and a disclaimer - Version 1 presented the same
+    randomly generated numbers as market data.
+    """
+    plants = db.query(FarmingSession).filter(FarmingSession.user_id == current_user.id).all()
+    animals = db.query(AnimalSession).filter(AnimalSession.user_id == current_user.id).all()
 
-@app.post("/api/sessions/{session_id}/notify")
-def send_session_notification(session_id: int, request: NotifyRequest, db: Session = Depends(get_db)):
-    session = db.query(FarmingSession).filter(FarmingSession.id == session_id).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-        
-    # Re-fetch recommendations to format the message
-    current_weather = get_current_weather(session.location)
-    forecast = get_forecast(session.location, days=1)[0]
-    soil_moisture = 50 # Mocking
-    
-    watering = generate_watering_recommendation(
-        session.crop_type, current_weather, forecast, session.soil_type, soil_moisture, session.id
-    )
-    fertilizing = generate_fertilizing_recommendation(
-        session.crop_type, current_weather, forecast, soil_moisture
-    )
-    disease_risk = assess_disease_risk(
-        current_weather["humidity"], current_weather["temperature"]
-    )
-    
-    recommendations = {
-        "watering": watering,
-        "fertilizing": fertilizing,
-        "disease_risk": disease_risk
-    }
-    
-    msg_body = format_alert_message(session.plot_name, session.crop_type, recommendations)
-    result = send_email_alert(request.email, msg_body)
-    
-    if result["status"] == "error":
-        raise HTTPException(status_code=500, detail=result["message"])
-        
-    return {"status": "success", "message": "Email alert sent successfully!"}
+    commodities: List[Dict[str, str]] = []
+    seen = set()
+    for plant in plants:
+        name = (plant.crop_type or "Unknown").lower()
+        if name not in seen:
+            seen.add(name)
+            commodities.append({"name": plant.crop_type or "Unknown", "type": "crop", "plot": plant.plot_name or ""})
+    for animal in animals:
+        name = (animal.animal_type or "Unknown").lower()
+        if name not in seen:
+            seen.add(name)
+            commodities.append(
+                {"name": animal.animal_type or "Unknown", "type": "animal", "plot": animal.session_name or ""}
+            )
 
-# ==========================================
-# Market Intelligence Endpoints
-# ==========================================
+    payload = build_market_intelligence(commodities)
+    payload["commodities_tracked"] = len(commodities)
+    return payload
 
-import random
-from datetime import timedelta
-
-@app.get("/api/market/intelligence")
-def get_market_intelligence(x_user_id: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    # 1. Get all sessions (active or ended)
-    plant_query = db.query(FarmingSession)
-    animal_query = db.query(AnimalSession)
-    if x_user_id:
-        plant_query = plant_query.filter(FarmingSession.user_id == int(x_user_id))
-        animal_query = animal_query.filter(AnimalSession.user_id == int(x_user_id))
-    all_plants = plant_query.all()
-    all_animals = animal_query.all()
-    
-    commodities = []
-    
-    # Extract unique crop types
-    for p in all_plants:
-        if p.crop_type.lower() not in [c['name'].lower() for c in commodities]:
-            commodities.append({"name": p.crop_type, "type": "crop", "plot": p.plot_name})
-            
-    for a in all_animals:
-        if a.animal_type.lower() not in [c['name'].lower() for c in commodities]:
-            commodities.append({"name": a.animal_type, "type": "animal", "plot": a.session_name})
-        
-    market_data = []
-    news_feed = []
-    recommendations = []
-    
-    for c in commodities:
-        name = c["name"].capitalize()
-        ctype = c["type"]
-        
-        # Simulate base price
-        base_price = random.randint(15, 60) if ctype == "crop" else random.randint(150, 400)
-        unit = "kg" if ctype == "crop" else ("kg live" if name != "Cow" else "liter")
-        if name.lower() in ["hen", "duck"]:
-            base_price = random.randint(5, 12)
-            unit = "egg"
-            
-        trend_perc = random.randint(-15, 30)
-        trend_dir = "↑" if trend_perc > 0 else "↓"
-        forecast_price = round(base_price * (1 + (trend_perc/100)), 2)
-        
-        market_data.append({
-            "commodity": name,
-            "plot": c["plot"],
-            "current_price": base_price,
-            "unit": unit,
-            "state_avg": round(base_price * 1.15, 2),
-            "national_avg": round(base_price * 1.25, 2),
-            "trend_perc": trend_perc,
-            "trend_dir": trend_dir,
-            "forecast_price": forecast_price,
-            "mandis": [
-                {"location": "Coimbatore", "price": base_price, "distance": "0 km"},
-                {"location": "Salem", "price": round(base_price * 1.1, 2), "distance": "85 km"},
-                {"location": "Chennai", "price": round(base_price * 1.3, 2), "distance": "190 km"}
-            ]
-        })
-        
-        # Simulate News
-        if trend_perc > 0:
-            reason = random.choice(["Heavy rain reduced supply", "Festival demand surging", "Export demand increased"])
-            action = "Sell soon to maximize profits"
-        else:
-            reason = random.choice(["Overproduction in neighboring states", "Low export demand", "Favorable weather increased harvest"])
-            action = "Hold stock if possible until prices recover"
-            
-        news_feed.append({
-            "commodity": name,
-            "headline": f"{name.upper()} MARKET UPDATE: Prices { 'rising' if trend_perc > 0 else 'falling' } {abs(trend_perc)}%",
-            "source": f"{'Tamil Nadu Agriculture' if ctype == 'crop' else 'Livestock Auction Report'}",
-            "reason": reason,
-            "forecast": f"Expected to reach ₹{forecast_price}/{unit} soon",
-            "recommendation": action
-        })
-        
-        # Smart Recommendation
-        rec = {
-            "title": f"SMART SELLING RECOMMENDATION ({name})",
-            "current_price": f"₹{base_price}/{unit}",
-            "forecast_price": f"₹{forecast_price}/{unit}",
-            "best_location": "Chennai (Net +15% after transport)",
-            "action": f"{'Wait 3-5 days' if trend_perc > 0 else 'Sell immediately before further drops'}"
-        }
-        recommendations.append(rec)
-        
-    return {
-        "market_data": market_data,
-        "news_feed": news_feed,
-        "recommendations": recommendations
-    }
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
+    uvicorn.run(
+        "main:app",
+        host=settings.api_host,
+        port=settings.api_port,
+        reload=not settings.is_production,
+    )
+

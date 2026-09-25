@@ -1,0 +1,124 @@
+import requests
+import random
+from datetime import datetime, timedelta
+
+# [SECRET REMOVED 2026-09-25] The Version-1 file contained a live OpenWeatherMap
+# API key inline. Phase 1 moved it to OPENWEATHER_API_KEY in backend/.env.
+# The key was exposed in this snapshot and in git history - rotate it.
+API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
+BASE_URL = "https://api.openweathermap.org/data/2.5"
+
+def get_current_weather(location: str):
+    """
+    Returns real-time weather data for a given location using OpenWeatherMap API.
+    """
+    try:
+        url = f"{BASE_URL}/weather?q={location}&appid={API_KEY}&units=metric"
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        
+        # OpenWeatherMap doesn't always provide solar radiation, so we mock it based on time
+        hour = datetime.now().hour
+        solar_radiation = random.randint(200, 800) if 6 <= hour <= 18 else 0
+        
+        # 'rain_probability_24h' is not in current weather, so we default to 0 and rely on forecast for this.
+        # Wind speed is in m/s, we convert it to km/h
+        
+        return {
+            "location": location,
+            "temperature": round(data["main"]["temp"], 1),
+            "humidity": data["main"]["humidity"],
+            "wind_speed": round(data["wind"]["speed"] * 3.6, 1),
+            "rain_probability_24h": 0, # To be overridden by forecast if needed
+            "solar_radiation": solar_radiation,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        print(f"Error fetching current weather: {e}")
+        # Fallback to mock data if API fails
+        return get_mock_current_weather(location)
+
+def get_forecast(location: str, days: int = 5):
+    """
+    Returns forecast data using OpenWeatherMap 5 day / 3 hour API.
+    """
+    try:
+        url = f"{BASE_URL}/forecast?q={location}&appid={API_KEY}&units=metric"
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        
+        forecast_list = []
+        base_date = datetime.now()
+        
+        # API returns 3-hour chunks for 5 days. We aggregate them daily.
+        daily_data = {}
+        for item in data['list']:
+            date_str = item['dt_txt'].split(' ')[0]
+            if date_str not in daily_data:
+                daily_data[date_str] = {
+                    "temp_max": item["main"]["temp_max"],
+                    "temp_min": item["main"]["temp_min"],
+                    "humidity": [],
+                    "pop": item.get("pop", 0) # Probability of precipitation
+                }
+            else:
+                daily_data[date_str]["temp_max"] = max(daily_data[date_str]["temp_max"], item["main"]["temp_max"])
+                daily_data[date_str]["temp_min"] = min(daily_data[date_str]["temp_min"], item["main"]["temp_min"])
+                daily_data[date_str]["pop"] = max(daily_data[date_str]["pop"], item.get("pop", 0))
+            
+            daily_data[date_str]["humidity"].append(item["main"]["humidity"])
+        
+        count = 0
+        for date_str, stats in daily_data.items():
+            if count >= days:
+                break
+            
+            avg_humidity = sum(stats["humidity"]) / len(stats["humidity"]) if stats["humidity"] else 0
+            
+            forecast_list.append({
+                "date": date_str,
+                "temp_max": round(stats["temp_max"], 1),
+                "temp_min": round(stats["temp_min"], 1),
+                "humidity_avg": round(avg_humidity, 1),
+                "rain_probability": int(stats["pop"] * 100) # OpenWeather pop is 0 to 1
+            })
+            count += 1
+            
+        return forecast_list
+    except Exception as e:
+        print(f"Error fetching forecast: {e}")
+        return get_mock_forecast(location, days)
+
+def get_mock_current_weather(location: str):
+    hour = datetime.now().hour
+    base_temp = 25
+    if 6 <= hour <= 18:
+        temp = base_temp + (12 - abs(14 - hour))
+    else:
+        temp = base_temp - 5 + random.randint(0, 3)
+    
+    return {
+        "location": location,
+        "temperature": round(temp + random.uniform(-2, 2), 1),
+        "humidity": random.randint(50, 90),
+        "wind_speed": round(random.uniform(2, 15), 1),
+        "rain_probability_24h": random.randint(0, 100),
+        "solar_radiation": random.randint(200, 800) if 6 <= hour <= 18 else 0,
+        "timestamp": datetime.now().isoformat()
+    }
+
+def get_mock_forecast(location: str, days: int = 5):
+    forecast = []
+    base_date = datetime.now()
+    for i in range(1, days + 1):
+        target_date = base_date + timedelta(days=i)
+        forecast.append({
+            "date": target_date.strftime("%Y-%m-%d"),
+            "temp_max": random.randint(30, 40),
+            "temp_min": random.randint(20, 28),
+            "humidity_avg": random.randint(50, 85),
+            "rain_probability": random.randint(0, 100)
+        })
+    return forecast
