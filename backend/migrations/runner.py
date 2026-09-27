@@ -34,6 +34,7 @@ MIGRATION_TABLE = "schema_migrations"
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "migrations.m001_phase1_schema", "Phase 1 schema + data fixes"),
     (2, "migrations.m002_referential_integrity", "Declare the foreign keys and indexes the ORM expects"),
+    (3, "migrations.m003_farmer_profile", "Farmer profile fields for personalization"),
 ]
 
 

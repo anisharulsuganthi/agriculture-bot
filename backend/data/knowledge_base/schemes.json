@@ -1,0 +1,124 @@
+[
+  {
+    "id": "pm_kisan",
+    "title": "PM-KISAN (Pradhan Mantri Kisan Samman Nidhi)",
+    "category": "Direct Income Support",
+    "ministry": "Ministry of Agriculture and Farmers Welfare",
+    "description": "PM-KISAN is a central sector scheme with 100% funding from Government of India. Under the scheme, income support of Rs. 6000/- per year in three equal installments of Rs. 2000/- each every four months is provided to all landholding farmer families across the country.",
+    "eligibility": [
+      "All landholding farmer families who have cultivable landholding in their names.",
+      "Small and marginal farmers as well as other landholders.",
+      "Exclusions: Institutional landholders, farmer families holding constitutional posts, serving/retired government officers, professionals (doctors, engineers, lawyers, CAs), and persons who paid Income Tax in the last assessment year."
+    ],
+    "benefits": "Financial benefit of Rs. 6,000 per year paid directly into bank accounts through Direct Benefit Transfer (DBT) in 3 equal installments of Rs. 2,000.",
+    "required_documents": [
+      "Aadhaar Card (mandatory)",
+      "Landholding papers / Record of Rights (RoR)",
+      "Savings Bank Account details (linked to Aadhaar)",
+      "Active Mobile number"
+    ],
+    "how_to_apply": "Farmers can self-register online at pmkisan.gov.in under 'Farmer Corner' -> 'New Farmer Registration', or through Common Service Centres (CSCs) and State Agriculture Nodal Officers.",
+    "source_url": "https://pmkisan.gov.in"
+  },
+  {
+    "id": "kcc",
+    "title": "Kisan Credit Card (KCC) Scheme",
+    "category": "Credit & Working Capital",
+    "ministry": "Ministry of Finance & Ministry of Agriculture",
+    "description": "The Kisan Credit Card scheme aims at providing adequate and timely credit support from the banking system under a single window with flexible and simplified procedure to the farmers for their cultivation and other agricultural needs including post-harvest and livestock maintenance.",
+    "eligibility": [
+      "Individual / joint borrowers who are owner cultivators.",
+      "Tenant farmers, oral lessees & sharecroppers.",
+      "Self Help Groups (SHGs) or Joint Liability Groups (JLGs) of farmers.",
+      "Farmers engaged in animal husbandry, dairy, poultry, and fisheries."
+    ],
+    "benefits": "Short-term crop loans up to Rs. 3 Lakhs at an effective interest rate of 4% per annum (with 2% interest subvention and 3% prompt repayment incentive). Simple revolving credit card facility valid for 5 years.",
+    "required_documents": [
+      "Duly completed KCC application form",
+      "Identity Proof (Aadhaar, Voter ID, PAN)",
+      "Address Proof",
+      "Land title documents, passbook or tenant agreement",
+      "Crop cultivation declaration"
+    ],
+    "how_to_apply": "Apply at any Commercial Bank, Regional Rural Bank (RRB), or Cooperative Bank branch, or apply online through the bank's portal or JanSamarth portal.",
+    "source_url": "https://www.myscheme.gov.in/schemes/kcc"
+  },
+  {
+    "id": "pmfby",
+    "title": "Pradhan Mantri Fasal Bima Yojana (PMFBY)",
+    "category": "Crop Insurance",
+    "ministry": "Ministry of Agriculture and Farmers Welfare",
+    "description": "PMFBY provides comprehensive insurance coverage and financial support to farmers suffering crop loss or damage arising out of unforeseen non-preventable natural risks such as drought, flood, pests, and disease.",
+    "eligibility": [
+      "All farmers growing notified crops in notified areas during the season who have an insurable interest.",
+      "Includes sharecroppers and tenant farmers.",
+      "Voluntary for all farmers (both loanee and non-loanee farmers)."
+    ],
+    "benefits": "Comprehensive risk insurance for standing crops, prevented sowing, post-harvest losses, and localized calamities. Uniform premium of only 2% for Kharif crops, 1.5% for Rabi crops, and 5% for annual commercial/horticultural crops; the rest is subsidized by the government.",
+    "required_documents": [
+      "Aadhaar Card",
+      "Land record documents / Tenancy certificate",
+      "Sowing Certificate or Sowing Declaration",
+      "Bank passbook details with IFSC"
+    ],
+    "how_to_apply": "Enroll through National Crop Insurance Portal (pmfby.gov.in), through the nearest bank branch, Primary Agricultural Credit Society (PACS), or CSC centre before the cut-off date.",
+    "source_url": "https://pmfby.gov.in"
+  },
+  {
+    "id": "soil_health_card",
+    "title": "Soil Health Card Scheme",
+    "category": "Soil & Nutrient Management",
+    "ministry": "Ministry of Agriculture and Farmers Welfare",
+    "description": "The Soil Health Card scheme assesses the nutrient status of farmer's fields and issues periodic Soil Health Cards containing crop-wise recommendations of dosage of nutrients and fertilizers required to improve soil fertility and farm productivity.",
+    "eligibility": [
+      "All agricultural landholders and farmers across all States and Union Territories in India."
+    ],
+    "benefits": "Free soil test report detailing status of 12 parameters: Macro-nutrients (N, P, K), Secondary nutrients (S), Micro-nutrients (Zn, Fe, Cu, Mn, Bo), and Physical parameters (pH, EC, Organic Carbon). Includes customized fertilizer and bio-fertilizer recommendations.",
+    "required_documents": [
+      "Land ownership document / Khasra-Khatauni number",
+      "Farmer Aadhaar ID",
+      "Soil sample collected following standard agricultural guidelines"
+    ],
+    "how_to_apply": "Local Agriculture Extension Officers / Krishi Vigyan Kendras (KVK) collect samples from the farm. Farmers can track their card status at soilhealth.dac.gov.in.",
+    "source_url": "https://soilhealth.dac.gov.in"
+  },
+  {
+    "id": "aif",
+    "title": "Agriculture Infrastructure Fund (AIF)",
+    "category": "Infrastructure Financing",
+    "ministry": "Ministry of Agriculture and Farmers Welfare",
+    "description": "A medium-long term debt financing facility for investment in viable projects for post-harvest management infrastructure and community farming assets through interest subvention and financial support.",
+    "eligibility": [
+      "Primary Agricultural Credit Societies (PACS), Marketing Cooperative Societies, Farmer Producers Organizations (FPOs), SHGs, Joint Liability Groups, Agri-entrepreneurs, and Start-ups."
+    ],
+    "benefits": "Loans up to Rs. 2 Crore with interest subvention of 3% per annum for up to 7 years. Credit guarantee coverage under CGTMSE for loans up to Rs. 2 Crore.",
+    "required_documents": [
+      "Detailed Project Report (DPR)",
+      "Land record or lease agreement for minimum period of project life",
+      "Registration certificate / KYC documents of borrowing entity",
+      "Bank account statements and audited financial reports"
+    ],
+    "how_to_apply": "Online application via the dedicated AIF portal (agriinfra.dac.gov.in) with project DPR.",
+    "source_url": "https://agriinfra.dac.gov.in"
+  },
+  {
+    "id": "pmksy",
+    "title": "Pradhan Mantri Krishi Sinchayee Yojana (PMKSY) - Per Drop More Crop",
+    "category": "Irrigation & Water Efficiency",
+    "ministry": "Department of Agriculture and Farmers Welfare",
+    "description": "Aims to enhance water use efficiency at farm level through micro-irrigation systems such as drip and sprinkler irrigation technologies, expanding cultivable area under assured irrigation.",
+    "eligibility": [
+      "All categories of farmers having cultivable land with an assured water source.",
+      "Members of water users associations or cooperative societies."
+    ],
+    "benefits": "Subsidy of up to 55% for Small and Marginal farmers, and up to 45% for other farmers for installing Drip and Sprinkler irrigation systems.",
+    "required_documents": [
+      "Proof of Landownership / Revenue Records",
+      "Aadhaar Card",
+      "Water source proof (Borewell / Open well / Canal connectivity)",
+      "Bank Account details"
+    ],
+    "how_to_apply": "Applications are submitted through the respective State Horticulture or Agriculture Department portal or District Horticulture Office.",
+    "source_url": "https://pmksy.gov.in"
+  }
+]

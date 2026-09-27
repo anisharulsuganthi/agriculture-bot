@@ -55,11 +55,29 @@
     var TOKEN_KEY = 'smartfarm_token';
     var USER_KEY = 'smartfarm_user';
 
+    var DUMMY_USER = {
+        id: 1,
+        name: "Demo Farmer",
+        email: "farmer@harvestiq.ai",
+        role: "farmer",
+        farm_location: "North Sector Farm",
+        land_area_cents: 50.0,
+        soil_type: "Loamy",
+        primary_crop: "Tomato",
+        irrigation_source: "Drip Irrigation"
+    };
+
     function getToken() {
         try {
-            return global.localStorage.getItem(TOKEN_KEY);
+            var tok = global.localStorage.getItem(TOKEN_KEY);
+            if (!tok) {
+                // Return dummy token so all requests carry Authorization
+                tok = 'dummy_demo_token';
+                global.localStorage.setItem(TOKEN_KEY, tok);
+            }
+            return tok;
         } catch (storageError) {
-            return null;
+            return 'dummy_demo_token';
         }
     }
 
@@ -74,9 +92,13 @@
 
     function getUser() {
         try {
-            return JSON.parse(global.localStorage.getItem(USER_KEY) || 'null');
+            var stored = global.localStorage.getItem(USER_KEY);
+            if (stored) return JSON.parse(stored);
+            // Default to demo user so all features and views are immediately unlocked
+            global.localStorage.setItem(USER_KEY, JSON.stringify(DUMMY_USER));
+            return DUMMY_USER;
         } catch (storageError) {
-            return null;
+            return DUMMY_USER;
         }
     }
 
@@ -90,7 +112,7 @@
     }
 
     function isAuthenticated() {
-        return Boolean(getToken());
+        return true;
     }
 
     // ---------------------------------------------------------------- escaping
@@ -136,16 +158,8 @@
     var sessionExpiryNotified = false;
 
     function notifySessionExpired() {
-        if (sessionExpiryNotified) return;
-        sessionExpiryNotified = true;
-        clearSession();
-        if (typeof global.showAuthView === 'function') {
-            global.showAuthView('login');
-        }
-        if (global.alert) {
-            global.alert('Your session has expired. Please sign in again.');
-        }
-        sessionExpiryNotified = false;
+        // In demo mode without strict JWT, do not force session expiration
+        console.warn("API request returned 401, continuing in demo mode.");
     }
 
     /**

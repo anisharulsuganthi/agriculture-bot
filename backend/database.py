@@ -210,6 +210,14 @@ class User(Base):
     otp_expiry = Column(DateTime, nullable=True)
     otp_attempts = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Farmer Profile & Personalization (Phase 7)
+    farm_location = Column(String(100), default="Tamil Nadu, India")
+    land_area_cents = Column(Float, default=50.0)
+    soil_type = Column(String(50), default="Loamy")
+    irrigation_source = Column(String(50), default="Borewell / Drip")
+    primary_crop = Column(String(50), default="Tomato")
+    livestock_owned = Column(String(100), default="Dairy Cattle")
 
 
 def init_db() -> dict:

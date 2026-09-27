@@ -279,6 +279,10 @@ window.showView = function(viewName) {
     if(document.getElementById('unified-dashboard-view')) document.getElementById('unified-dashboard-view').classList.add('d-none');
     document.getElementById('market-intelligence-view').classList.add('d-none');
     if(document.getElementById('profile-view')) document.getElementById('profile-view').classList.add('d-none');
+    if(document.getElementById('croprec-view')) document.getElementById('croprec-view').classList.add('d-none');
+    if(document.getElementById('yield-view')) document.getElementById('yield-view').classList.add('d-none');
+    if(document.getElementById('schemes-view')) document.getElementById('schemes-view').classList.add('d-none');
+    if(document.getElementById('assistant-view')) document.getElementById('assistant-view').classList.add('d-none');
     
     // Toggle body background and navbar margin
     const navbar = document.getElementById('main-navbar');
@@ -290,6 +294,15 @@ window.showView = function(viewName) {
         
         if (viewName === 'disease') {
             document.getElementById('disease-prediction-view').classList.remove('d-none');
+        } else if (viewName === 'croprec') {
+            if(document.getElementById('croprec-view')) document.getElementById('croprec-view').classList.remove('d-none');
+        } else if (viewName === 'yield') {
+            if(document.getElementById('yield-view')) document.getElementById('yield-view').classList.remove('d-none');
+        } else if (viewName === 'schemes') {
+            if(document.getElementById('schemes-view')) document.getElementById('schemes-view').classList.remove('d-none');
+            loadSchemesDirectory();
+        } else if (viewName === 'assistant') {
+            if(document.getElementById('assistant-view')) document.getElementById('assistant-view').classList.remove('d-none');
         } else if (viewName === 'climate') {
             document.getElementById('climate-prediction-view').classList.remove('d-none');
             loadClimateView();
@@ -2198,8 +2211,263 @@ window.loadUserProfile = async function() {
     }
 };
 
+// Demo login helper: skips JWT requirements and logs directly in with demo farmer
+window.handleDemoLogin = function() {
+    const demoUser = {
+        id: 1,
+        name: "Demo Farmer",
+        email: "farmer@harvestiq.ai",
+        role: "farmer",
+        farm_location: "North Sector Farm",
+        land_area_cents: 50.0,
+        soil_type: "Loamy",
+        primary_crop: "Tomato",
+        irrigation_source: "Drip Irrigation"
+    };
+    setSession("dummy_demo_token", demoUser);
+    closeAuthView();
+    showView('home');
+    loadUserProfile();
+};
+
 // Logout handler
 window.handleLogout = function() {
     clearSession();
     window.location.reload();
+};
+
+// ========================================================
+// PHASE 3-6 CLIENT HANDLERS
+// ========================================================
+
+// 1. Crop Recommendation Handler
+document.addEventListener('DOMContentLoaded', () => {
+    const cropRecForm = document.getElementById('croprec-form');
+    if (cropRecForm) {
+        cropRecForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-run-croprec');
+            btn.disabled = true;
+            btn.textContent = 'Evaluating...';
+            
+            const payload = {
+                n: parseFloat(document.getElementById('rec-n').value),
+                p: parseFloat(document.getElementById('rec-p').value),
+                k: parseFloat(document.getElementById('rec-k').value),
+                ph: parseFloat(document.getElementById('rec-ph').value),
+                temperature: parseFloat(document.getElementById('rec-temp').value),
+                humidity: parseFloat(document.getElementById('rec-humidity').value),
+                rainfall: parseFloat(document.getElementById('rec-rainfall').value),
+                top_k: 3
+            };
+
+            try {
+                const res = await fetch(apiUrl('/api/ml/crop-recommendation'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Evaluation failed');
+
+                const container = document.getElementById('croprec-cards-container');
+                container.innerHTML = '';
+                data.recommendations.forEach(rec => {
+                    const col = document.createElement('div');
+                    col.className = 'col-md-4';
+                    col.innerHTML = `
+                        <div class="card bg-dark border-success h-100 p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="fw-bold text-success mb-0">${escapeHtml(rec.crop)}</h5>
+                                <span class="badge bg-success">${rec.confidence}% Match</span>
+                            </div>
+                            <p class="small text-muted mb-2"><strong>Season:</strong> ${escapeHtml(rec.season)}</p>
+                            <p class="small text-light mb-2">${escapeHtml(rec.explanation)}</p>
+                            <div class="mt-auto border-top border-secondary pt-2 small text-muted">
+                                Soil: ${escapeHtml(rec.recommended_soil)}
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(col);
+                });
+                document.getElementById('croprec-results').classList.remove('d-none');
+            } catch (err) {
+                alert('Crop recommendation error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Evaluate Suitable Crops';
+            }
+        });
+    }
+
+    // 2. Yield Prediction Handler
+    const yieldForm = document.getElementById('yield-form');
+    if (yieldForm) {
+        yieldForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-run-yield');
+            btn.disabled = true;
+            btn.textContent = 'Calculating...';
+
+            const payload = {
+                crop: document.getElementById('yield-crop').value,
+                area_cents: parseFloat(document.getElementById('yield-area').value),
+                soil_type: document.getElementById('yield-soil').value,
+                fertilizer_applied_kg: parseFloat(document.getElementById('yield-fert').value),
+                rainfall_mm: parseFloat(document.getElementById('yield-rain').value),
+                temperature_c: parseFloat(document.getElementById('yield-temp').value),
+                irrigation_available: true
+            };
+
+            try {
+                const res = await fetch(apiUrl('/api/ml/yield-prediction'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Prediction failed');
+
+                const p = data.prediction;
+                document.getElementById('yield-output-title').textContent = `Predicted Harvest Yield for ${p.crop}`;
+                document.getElementById('yield-output-val').textContent = `${p.total_predicted_yield_kg} kg (~${p.predicted_yield_kg_per_ha} kg/ha)`;
+                document.getElementById('yield-output-details').textContent = 
+                    `Land Area: ${p.area_cents} cents (${p.area_hectares} ha) | Soil Multiplier: ${p.factors.soil_fertility_multiplier}x | Water Multiplier: ${p.factors.water_availability_multiplier}x`;
+                document.getElementById('yield-results').classList.remove('d-none');
+            } catch (err) {
+                alert('Yield prediction error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📊 Predict Expected Yield';
+            }
+        });
+    }
+
+    // 3. RAG Query Handler
+    const ragForm = document.getElementById('rag-query-form');
+    if (ragForm) {
+        ragForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-run-rag');
+            const q = document.getElementById('rag-query-input').value;
+            btn.disabled = true;
+            btn.textContent = 'Searching...';
+
+            try {
+                const res = await fetch(apiUrl('/api/knowledge/query'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: q })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Query failed');
+
+                document.getElementById('rag-answer-text').textContent = data.answer;
+                const citBox = document.getElementById('rag-citations-container');
+                citBox.innerHTML = '<strong class="small text-success d-block mb-1">Citations & Official Sources:</strong>';
+                if (data.citations && data.citations.length) {
+                    data.citations.forEach(c => {
+                        const a = document.createElement('a');
+                        a.href = c.source_url;
+                        a.target = '_blank';
+                        a.className = 'badge bg-secondary text-decoration-none me-2 p-2';
+                        a.textContent = `🔗 ${c.title}`;
+                        citBox.appendChild(a);
+                    });
+                } else {
+                    citBox.innerHTML += '<span class="small text-muted">No external citations required.</span>';
+                }
+                document.getElementById('rag-result-box').classList.remove('d-none');
+            } catch (err) {
+                alert('Knowledge search error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Search Knowledge Base';
+            }
+        });
+    }
+
+    // 4. Conversational Assistant Handler
+    const chatForm = document.getElementById('assistant-form');
+    if (chatForm) {
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('assistant-input');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            const chatMessages = document.getElementById('chat-messages');
+
+            // Render User Bubble
+            const userBubble = document.createElement('div');
+            userBubble.className = 'd-flex justify-content-end mb-3';
+            userBubble.innerHTML = `
+                <div class="bg-success text-white p-3 rounded" style="max-width: 80%;">
+                    <strong>You:</strong> ${escapeHtml(msg)}
+                </div>
+            `;
+            chatMessages.appendChild(userBubble);
+            input.value = '';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            const btn = document.getElementById('btn-send-chat');
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(apiUrl('/api/assistant/chat'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Assistant error');
+
+                const r = data.result;
+                const aiBubble = document.createElement('div');
+                aiBubble.className = 'd-flex mb-3';
+                aiBubble.innerHTML = `
+                    <div class="bg-dark border border-secondary text-light p-3 rounded" style="max-width: 80%;">
+                        <strong>AI Assistant:</strong> <span class="badge bg-secondary mb-1">${escapeHtml(r.intent)}</span>
+                        <div class="mt-1" style="white-space: pre-line;">${escapeHtml(r.response)}</div>
+                    </div>
+                `;
+                chatMessages.appendChild(aiBubble);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } catch (err) {
+                alert('Assistant error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    }
+});
+
+// Load official schemes directory
+window.loadSchemesDirectory = async function() {
+    const container = document.getElementById('schemes-list-container');
+    if (!container) return;
+    try {
+        const res = await fetch(apiUrl('/api/knowledge/schemes'));
+        if (!res.ok) throw new Error('Failed to load schemes');
+        const data = await res.json();
+        container.innerHTML = '';
+        data.schemes.forEach(s => {
+            const col = document.createElement('div');
+            col.className = 'col-md-6';
+            col.innerHTML = `
+                <div class="card bg-dark border-secondary p-3 h-100">
+                    <h5 class="fw-bold text-success">${escapeHtml(s.title)}</h5>
+                    <span class="badge bg-secondary mb-2 align-self-start">${escapeHtml(s.category)}</span>
+                    <p class="small text-light">${escapeHtml(s.description)}</p>
+                    <p class="small text-muted mb-2"><strong>Benefits:</strong> ${escapeHtml(s.benefits)}</p>
+                    <div class="mt-auto pt-2 border-top border-secondary">
+                        <a href="${s.source_url}" target="_blank" class="btn btn-outline-success btn-sm">Official Portal ↗</a>
+                    </div>
+                </div>
+            `;
+            container.appendChild(col);
+        });
+    } catch (err) {
+        container.innerHTML = `<div class="text-danger small">Error loading schemes directory: ${escapeHtml(err.message)}</div>`;
+    }
 };

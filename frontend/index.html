@@ -147,6 +147,229 @@
             -webkit-text-fill-color: transparent;
             text-shadow: 0 0 10px rgba(40, 167, 69, 0.1);
         }
+
+        /* ======================================================== */
+        /* PROFESSIONAL FARMER-FRIENDLY VIEW STYLING                */
+        /* ======================================================== */
+        .farmer-glass-card {
+            background: rgba(14, 24, 15, 0.88) !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(180, 230, 57, 0.22) !important;
+            border-radius: 20px !important;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45) !important;
+            color: #f1f8ee !important;
+        }
+
+        .farmer-glass-card .card-header {
+            background: linear-gradient(135deg, rgba(180, 230, 57, 0.12), rgba(40, 167, 69, 0.05)) !important;
+            border-bottom: 1px solid rgba(180, 230, 57, 0.2) !important;
+            border-radius: 20px 20px 0 0 !important;
+            padding: 1.25rem 1.75rem !important;
+        }
+
+        .farmer-input-field {
+            background: rgba(8, 14, 8, 0.85) !important;
+            border: 1px solid rgba(180, 230, 57, 0.3) !important;
+            color: #ffffff !important;
+            border-radius: 10px !important;
+            padding: 0.7rem 1rem !important;
+            font-size: 1rem !important;
+            transition: all 0.25s ease !important;
+        }
+
+        .farmer-input-field:focus {
+            background: rgba(12, 20, 12, 0.95) !important;
+            border-color: #b4e639 !important;
+            box-shadow: 0 0 14px rgba(180, 230, 57, 0.35) !important;
+            outline: none !important;
+        }
+
+        .farmer-input-label {
+            font-weight: 600 !important;
+            color: #d2ebb0 !important;
+            font-size: 0.92rem !important;
+            margin-bottom: 0.4rem !important;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .farmer-hint-text {
+            color: #92b584 !important;
+            font-size: 0.82rem !important;
+            margin-top: 0.25rem;
+        }
+
+        .farmer-btn-primary {
+            background: linear-gradient(135deg, #b4e639 0%, #28a745 100%) !important;
+            color: #071507 !important;
+            font-weight: 700 !important;
+            font-size: 1.05rem !important;
+            border: none !important;
+            border-radius: 12px !important;
+            padding: 0.75rem 1.8rem !important;
+            box-shadow: 0 4px 18px rgba(180, 230, 57, 0.35) !important;
+            transition: all 0.25s ease !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .farmer-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(180, 230, 57, 0.55) !important;
+            color: #000000 !important;
+        }
+
+        .farmer-stat-badge {
+            background: rgba(180, 230, 57, 0.12);
+            border: 1px solid rgba(180, 230, 57, 0.3);
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            text-align: center;
+        }
+
+        .farmer-view-header {
+            margin-bottom: 2rem;
+            border-left: 4px solid #b4e639;
+            padding-left: 1.25rem;
+        }
+
+        .farmer-view-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            color: #ffffff;
+            font-size: 2.1rem;
+            letter-spacing: -0.5px;
+            margin-bottom: 0.3rem;
+        }
+
+        .farmer-view-header p {
+            color: #b0c9a4;
+            font-size: 1.05rem;
+            margin-bottom: 0;
+        }
+
+        .dropdown-menu-dark {
+            background-color: #0c180e !important;
+            border: 1px solid rgba(180, 230, 57, 0.3) !important;
+            border-radius: 12px !important;
+            padding: 0.5rem 0.25rem !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6) !important;
+        }
+
+        .dropdown-menu-dark .dropdown-item {
+            color: #d8edd1 !important;
+            border-radius: 8px !important;
+            padding: 0.55rem 1rem !important;
+            font-size: 0.92rem !important;
+            transition: all 0.2s ease;
+        }
+
+        .dropdown-menu-dark .dropdown-item:hover {
+            background: rgba(180, 230, 57, 0.18) !important;
+            color: #ffffff !important;
+            transform: translateX(4px);
+        }
+
+        /* Glass table and list items */
+        .farmer-glass-card .table {
+            color: #e5f5df !important;
+            margin-bottom: 0;
+        }
+        .farmer-glass-card .table th {
+            background: rgba(25, 45, 25, 0.75) !important;
+            color: #b4e639 !important;
+            border-bottom: 1px solid rgba(180, 230, 57, 0.25) !important;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .farmer-glass-card .table td {
+            background: transparent !important;
+            border-bottom: 1px solid rgba(180, 230, 57, 0.12) !important;
+            color: #e3f2dc !important;
+        }
+        .farmer-glass-card .list-group-item {
+            background: rgba(15, 26, 17, 0.7) !important;
+            border-color: rgba(180, 230, 57, 0.15) !important;
+            color: #e0f2d8 !important;
+            transition: all 0.2s ease;
+        }
+        .farmer-glass-card .list-group-item:hover {
+            background: rgba(180, 230, 57, 0.12) !important;
+            color: #ffffff !important;
+        }
+        .farmer-glass-card .list-group-item.active {
+            background: linear-gradient(135deg, rgba(180, 230, 57, 0.25), rgba(40, 167, 69, 0.35)) !important;
+            border-color: #b4e639 !important;
+            color: #ffffff !important;
+            font-weight: 700;
+        }
+
+        /* Interactive Journey Stepper */
+        .farmer-journey-bar {
+            background: rgba(14, 24, 15, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(180, 230, 57, 0.2);
+            border-radius: 16px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            overflow-x: auto;
+        }
+        .journey-step {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 0.9rem;
+            border-radius: 10px;
+            text-decoration: none;
+            color: #a3c498;
+            font-size: 0.88rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid transparent;
+        }
+        .journey-step:hover {
+            color: #ffffff;
+            background: rgba(180, 230, 57, 0.15);
+            border-color: rgba(180, 230, 57, 0.3);
+            transform: translateY(-1px);
+        }
+        .journey-step.active {
+            background: linear-gradient(135deg, rgba(180, 230, 57, 0.25), rgba(40, 167, 69, 0.3));
+            color: #ffffff;
+            border-color: #b4e639;
+            box-shadow: 0 0 12px rgba(180, 230, 57, 0.25);
+        }
+        .journey-step .step-num {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(180, 230, 57, 0.2);
+            color: #b4e639;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 800;
+        }
+        .journey-step.active .step-num {
+            background: #b4e639;
+            color: #071507;
+        }
+        .journey-arrow {
+            color: rgba(180, 230, 57, 0.4);
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body style="background: #0a0f0a;">
@@ -166,29 +389,50 @@
                 <li class="nav-item">
                     <a class="nav-link home-nav-btn active" href="#" id="nav-home" onclick="showView('home')">🏠 Home</a>
                 </li>
-                <li class="nav-item auth-required">
-                    <a class="nav-link" href="#" id="nav-disease" onclick="showView('disease')">Disease Prediction</a>
+
+                <!-- Diagnostics & Matching -->
+                <li class="nav-item dropdown auth-required">
+                    <a class="nav-link dropdown-toggle" href="#" id="nav-ai-tools" role="button" data-bs-toggle="dropdown">
+                        🔬 AI Diagnostics
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-dark shadow border-success">
+                        <li><a class="dropdown-item" href="#" id="nav-disease" onclick="showView('disease')">🍂 Leaf Disease Scan</a></li>
+                        <li><a class="dropdown-item" href="#" id="nav-croprec" onclick="showView('croprec')">🌾 Soil-Crop Match</a></li>
+                        <li><a class="dropdown-item" href="#" id="nav-yield" onclick="showView('yield')">⚖️ Harvest Yield Predictor</a></li>
+                    </ul>
                 </li>
-                <li class="nav-item auth-required">
-                    <a class="nav-link" href="#" id="nav-climate" onclick="showView('climate')">Climate Dashboard</a>
+
+                <!-- Farm Operations -->
+                <li class="nav-item dropdown auth-required">
+                    <a class="nav-link dropdown-toggle" href="#" id="nav-operations" role="button" data-bs-toggle="dropdown">
+                        🚜 Farm Operations
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-dark shadow border-success">
+                        <li><a class="dropdown-item" href="#" id="nav-plantfarm" onclick="showView('plantfarm')">🌱 Crop Plot Management</a></li>
+                        <li><a class="dropdown-item" href="#" id="nav-animalfarm" onclick="showView('animalfarm')">🐾 Livestock Herd Care</a></li>
+                        <li><a class="dropdown-item" href="#" id="nav-climate" onclick="showView('climate')">🌤️ Microclimate & Irrigation</a></li>
+                    </ul>
                 </li>
-                <li class="nav-item auth-required">
-                    <a class="nav-link" id="nav-plantfarm" href="#" onclick="showView('plantfarm')">🌱 Plant Farm</a>
+
+                <!-- Intelligence & Advisory -->
+                <li class="nav-item dropdown auth-required">
+                    <a class="nav-link dropdown-toggle" href="#" id="nav-intelligence" role="button" data-bs-toggle="dropdown">
+                        📚 Knowledge & Advisory
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-dark shadow border-success">
+                        <li><a class="dropdown-item" href="#" id="nav-schemes" onclick="showView('schemes')">📜 Government Schemes & RAG</a></li>
+                        <li><a class="dropdown-item" href="#" id="nav-assistant" onclick="showView('assistant')">🤖 Farmer AI Assistant</a></li>
+                        <li><hr class="dropdown-divider border-secondary"></li>
+                        <li><a class="dropdown-item" href="#" id="nav-analysis" onclick="showView('analysis')">📊 Financial & Yield Analytics</a></li>
+                        <li><a class="dropdown-item" href="#" id="nav-market" onclick="showView('market')">📈 Mandi Market Intel</a></li>
+                    </ul>
                 </li>
-                <li class="nav-item auth-required">
-                    <a class="nav-link" id="nav-animalfarm" href="#" onclick="showView('animalfarm')">🐾 Animal Farm</a>
-                </li>
-                <li class="nav-item auth-required">
-                    <a class="nav-link" id="nav-analysis" href="#" onclick="showView('analysis')">📊 Analytics Dashboard</a>
-                </li>
-                <li class="nav-item auth-required">
-                    <a class="nav-link" id="nav-market" href="#" onclick="showView('market')">📈 Market</a>
-                </li>
+
                 <li class="nav-item unauth-only">
                     <a class="nav-link fw-bold" href="#" onclick="showAuthView('login')">Login</a>
                 </li>
                 <li class="nav-item unauth-only">
-                    <a class="btn btn-success btn-sm ms-2 rounded-pill px-3" href="#" onclick="showAuthView('register')" style="margin-top: 0.2rem;">Start the Journey</a>
+                    <a class="btn btn-success btn-sm ms-2 rounded-pill px-3" href="#" onclick="showAuthView('register')" style="margin-top: 0.2rem;">Start Journey</a>
                 </li>
             </ul>
             
@@ -261,6 +505,11 @@ function googleTranslateElementInit() {
                 <a href="#" class="auth-link" onclick="switchAuthTab('forgot'); return false;">Forgot Password?</a>
             </div>
             <button type="submit" class="auth-btn" id="login-btn">Sign In</button>
+            <div class="mt-3 text-center">
+                <button type="button" class="btn btn-outline-success w-100 fw-bold py-2 rounded-3" onclick="handleDemoLogin()" style="border-color: #b4e639; color: #b4e639;">
+                    ⚡ Continue as Demo Farmer (Skip Login)
+                </button>
+            </div>
         </form>
         
         <!-- Register Form -->
@@ -648,57 +897,64 @@ function googleTranslateElementInit() {
 
 <div class="container mb-5 d-none" id="disease-prediction-view">
     <div class="row mb-4">
-        <div class="col-12 view-header">
-            <h2>🔬 Disease Prediction</h2>
-            <p>Upload a plant image and let our AI detect diseases with recommended cure steps.</p>
+        <div class="col-12 farmer-view-header">
+            <h2>🔬 Crop Pathology & Leaf Diagnostics</h2>
+            <p>Upload a photograph of any affected crop leaf. MobileNetV2 analyzes visual symptoms across 38 classes and provides targeted agronomic remedies.</p>
         </div>
     </div>
     <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header text-center py-3">
-                    <h2 class="h4 mb-0 fw-bold">Predict Plant Disease</h2>
+        <div class="col-md-9">
+            <div class="card farmer-glass-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="h5 mb-0 fw-bold text-success">🌿 Leaf Disease Scanner</h3>
+                    <span class="badge bg-success-subtle text-success border border-success px-3 py-1">CUDA Accelerated</span>
                 </div>
                 <div class="card-body p-4">
                     <div id="alert-container"></div>
                     
                     <form id="prediction-form">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Upload Image</label>
-                            <div id="drop-zone" class="border border-2 border-dashed rounded p-5 text-center text-muted bg-light" style="cursor: pointer;">
-                                <p class="mb-0">Drag & drop an image here, or click to select</p>
+                        <div class="mb-4">
+                            <label class="farmer-input-label">Select Leaf Image File</label>
+                            <div id="drop-zone" class="border border-2 border-dashed rounded-4 p-5 text-center bg-dark-50" style="cursor: pointer; border-color: rgba(180, 230, 57, 0.4) !important; background: rgba(0,0,0,0.35);">
+                                <div style="font-size: 2.8rem; margin-bottom: 0.5rem;">📸</div>
+                                <h5 class="fw-bold text-light mb-1">Click to select or drag & drop leaf photo</h5>
+                                <p class="farmer-hint-text mb-0">Supported formats: JPG, PNG, WEBP (Maximum 8 MB)</p>
                                 <input type="file" id="image-input" accept="image/*" class="d-none">
-                                <img id="image-preview" class="img-fluid mt-3 rounded d-none" style="max-height: 250px;">
+                                <img id="image-preview" class="img-fluid mt-3 rounded-3 shadow d-none" style="max-height: 280px; border: 2px solid #b4e639;">
                             </div>
                         </div>
 
-
-
-                        <button type="submit" id="submit-btn" class="btn btn-success w-100 py-2 fw-bold" disabled>Predict Disease</button>
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" id="submit-btn" class="farmer-btn-primary w-100 py-3" disabled>
+                                <span>🔬 Run AI Diagnostic Scan</span>
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>
             
-            <div id="result-section" class="card shadow-sm mt-4 d-none">
-                <div class="card-header text-center py-3">
-                    <h2 class="h4 mb-0 fw-bold">Prediction Result</h2>
+            <div id="result-section" class="card farmer-glass-card mt-4 d-none">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="h5 mb-0 fw-bold text-success">📋 Diagnostic Findings & Prescription</h3>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="reset-btn">🔄 Scan Another Leaf</button>
                 </div>
                 <div class="card-body p-4">
                     <div class="text-center mb-4">
-                        <img id="res-annotated-image" class="img-fluid rounded border border-2 border-success d-none" style="max-height: 400px; width: auto;" alt="Annotated Detection Result">
+                        <img id="res-annotated-image" class="img-fluid rounded-4 shadow-lg border border-2 border-success d-none" style="max-height: 420px; width: auto;" alt="Annotated Detection Result">
                     </div>
 
-                    <div class="row mb-4">
-                        <div class="col-sm-6 mb-3 mb-sm-0">
-                            <h3 id="res-disease-name" class="fw-bold text-dark"></h3>
-                            <div class="d-flex align-items-center gap-2 mt-2">
+                    <div class="row mb-4 p-3 rounded-3" style="background: rgba(0,0,0,0.35); border: 1px solid rgba(180, 230, 57, 0.2);">
+                        <div class="col-sm-7 mb-3 mb-sm-0">
+                            <span class="text-muted small text-uppercase fw-bold">Primary Identification</span>
+                            <h3 id="res-disease-name" class="fw-bold text-success mt-1 mb-2"></h3>
+                            <div class="d-flex align-items-center gap-2 mt-1">
                                 <span id="res-healthy" class="badge"></span>
                                 <span id="res-severity" class="badge bg-secondary"></span>
                             </div>
                         </div>
-                        <div class="col-sm-6 text-sm-end">
-                            <p class="text-muted mb-1">Top Confidence</p>
-                            <h4 id="res-confidence" class="fw-bold mb-0"></h4>
+                        <div class="col-sm-5 text-sm-end">
+                            <span class="text-muted small text-uppercase fw-bold">Model Confidence</span>
+                            <h2 id="res-confidence" class="fw-bold text-light mt-1 mb-0" style="color: #b4e639 !important;"></h2>
                         </div>
                     </div>
 
@@ -706,7 +962,7 @@ function googleTranslateElementInit() {
                     <div id="res-notice" class="alert alert-warning d-none" role="alert"></div>
                     <p id="res-model-meta" class="text-muted small"></p>
 
-                    <h4 class="h5 fw-bold text-dark mb-3 border-bottom pb-2">All Detections</h4>
+                    <h4 class="h5 fw-bold text-light mb-3 border-bottom border-secondary pb-2">Top Probable Classifications</h4>
                     <div class="table-responsive mb-4">
                         <table class="table table-bordered table-striped">
                             <thead class="table-light">
@@ -747,69 +1003,90 @@ function googleTranslateElementInit() {
 
 <div class="container mb-5 d-none" id="climate-prediction-view">
     <div class="row mb-4">
-        <div class="col-12 view-header">
-            <h2>🌤️ Climate Dashboard</h2>
-            <p>Real-time weather data, disease risk alerts, and smart watering & fertilizing recommendations.</p>
+        <div class="col-12 farmer-view-header">
+            <h2>🌤️ Microclimate Advisory & Irrigation</h2>
+            <p>Real-time weather station integration, automated fungal risk evaluation, and precision watering & nutrient schedules.</p>
         </div>
     </div>
+
+    <!-- Farmer Journey ribbon -->
+    <div class="farmer-journey-bar">
+        <a href="#" class="journey-step" onclick="showView('croprec'); return false;"><span class="step-num">1</span> 🌾 Match Soil</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('plantfarm'); return false;"><span class="step-num">2</span> 🌱 Plant Plot</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step active" onclick="showView('climate'); return false;"><span class="step-num">3</span> 🌤️ Weather & Water</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('disease'); return false;"><span class="step-num">4</span> 🔬 Scan Health</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('yield'); return false;"><span class="step-num">5</span> ⚖️ Harvest Yield</a>
+    </div>
+
     <div class="row justify-content-center">
-        <div class="col-md-10">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                    <h2 class="h4 mb-0 fw-bold">Active Farming Session</h2>
-                    <div class="d-flex gap-2">
-                        <select id="climate-session-selector" class="form-select form-select-sm" onchange="handleClimateSessionSelect()">
-                            <option value="">Select a session...</option>
+        <div class="col-md-11">
+            <div class="card farmer-glass-card mb-4">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span style="font-size: 1.4rem;">🎯</span>
+                        <h4 class="mb-0 fw-bold text-success">Active Farming Session</h4>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <select id="climate-session-selector" class="farmer-input-field" style="min-width: 220px;" onchange="handleClimateSessionSelect()">
+                            <option value="">Select a farm session...</option>
                         </select>
-                        <button class="btn btn-sm btn-outline-primary" onclick="sendAlert()">📧 Send Alert to Email</button>
+                        <button class="farmer-btn-primary py-2 px-3" style="font-size: 0.9rem;" onclick="sendAlert()">📧 Email Advisory</button>
                     </div>
                 </div>
-                <div class="card-body">
-                    <div id="session-info" class="d-flex align-items-center gap-4">
+                <div class="card-body p-4">
+                    <div id="session-info" class="d-flex align-items-center gap-3 text-light">
                         <!-- Filled by JS -->
-                        <span class="text-muted">Please select a session from the dropdown above to view climate and recommendations.</span>
+                        <span class="text-muted">🌱 Please select a farming session from the dropdown above to display tailored microclimate metrics and irrigation advisory.</span>
                     </div>
                 </div>
             </div>
 
-            <div class="row mb-4">
+            <div class="row g-4 mb-4">
                 <div class="col-md-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header bg-white">
-                            <h5 class="mb-0 fw-bold">🌤️ Today's Weather</h5>
+                    <div class="card farmer-glass-card h-100">
+                        <div class="card-header d-flex align-items-center gap-2">
+                            <span style="font-size: 1.3rem;">🌤️</span>
+                            <h5 class="mb-0 fw-bold text-light">Ambient Weather Status</h5>
                         </div>
-                        <div class="card-body" id="weather-info">
-                            <span class="text-muted">Loading weather...</span>
+                        <div class="card-body p-4" id="weather-info">
+                            <span class="text-muted">Awaiting session selection to load local climate data...</span>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header bg-white">
-                            <h5 class="mb-0 fw-bold">🦠 Disease Risk</h5>
+                    <div class="card farmer-glass-card h-100">
+                        <div class="card-header d-flex align-items-center gap-2">
+                            <span style="font-size: 1.3rem;">🦠</span>
+                            <h5 class="mb-0 fw-bold text-light">Fungal & Disease Pathogen Risk</h5>
                         </div>
-                        <div class="card-body" id="disease-risk-info">
-                            <span class="text-muted">Loading risk data...</span>
+                        <div class="card-body p-4" id="disease-risk-info">
+                            <span class="text-muted">Awaiting session selection to compute pathogen risk...</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="card shadow-sm mb-4 border-primary">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0 fw-bold">💧 Watering Recommendation</h5>
+            <div class="card farmer-glass-card mb-4" style="border-left: 4px solid #38bdf8 !important;">
+                <div class="card-header d-flex align-items-center gap-2" style="background: rgba(56, 189, 248, 0.1) !important;">
+                    <span style="font-size: 1.3rem;">💧</span>
+                    <h5 class="mb-0 fw-bold text-info">Irrigation & Soil Moisture Action</h5>
                 </div>
-                <div class="card-body" id="watering-rec">
-                    <span class="text-muted">Loading recommendation...</span>
+                <div class="card-body p-4 text-light" id="watering-rec">
+                    <span class="text-muted">Select an active session to calculate irrigation requirements...</span>
                 </div>
             </div>
 
-            <div class="card shadow-sm border-success">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0 fw-bold">🌿 Fertilizing Recommendation</h5>
+            <div class="card farmer-glass-card" style="border-left: 4px solid #b4e639 !important;">
+                <div class="card-header d-flex align-items-center gap-2" style="background: rgba(180, 230, 57, 0.1) !important;">
+                    <span style="font-size: 1.3rem;">🌿</span>
+                    <h5 class="mb-0 fw-bold text-success">Nutrient & Fertilizer Application</h5>
                 </div>
-                <div class="card-body" id="fertilizing-rec">
-                    <span class="text-muted">Loading recommendation...</span>
+                <div class="card-body p-4 text-light" id="fertilizing-rec">
+                    <span class="text-muted">Select an active session to calculate fertilizer application rate...</span>
                 </div>
             </div>
         </div>
@@ -818,119 +1095,132 @@ function googleTranslateElementInit() {
 
 <div class="container mb-5 d-none" id="plant-farm-view">
     <div class="row mb-4">
-        <div class="col-12 view-header">
-            <h2>🌾 Plant Farm Management</h2>
-            <p>Track planting sessions, daily logs, investments, and harvest yields.</p>
+        <div class="col-12 farmer-view-header">
+            <h2>🌾 Crop Plot & Field Management</h2>
+            <p>Active planting cycles, daily hydration logs, fertilizer tracking, input investments, and harvest ledger.</p>
         </div>
+    </div>
+
+    <!-- Farmer Journey ribbon -->
+    <div class="farmer-journey-bar">
+        <a href="#" class="journey-step" onclick="showView('croprec'); return false;"><span class="step-num">1</span> 🌾 Match Soil</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step active" onclick="showView('plantfarm'); return false;"><span class="step-num">2</span> 🌱 Plant Plot</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('climate'); return false;"><span class="step-num">3</span> 🌤️ Weather & Water</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('disease'); return false;"><span class="step-num">4</span> 🔬 Scan Health</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('yield'); return false;"><span class="step-num">5</span> ⚖️ Harvest Yield</a>
     </div>
     
     <!-- Dashboard Summary -->
-    <div class="row mb-4 text-center">
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-info h-100">
-                <div class="card-body">
-                    <h6 class="text-muted text-uppercase mb-1">Total Investment</h6>
-                    <h3 class="fw-bold text-dark" id="summary-investment">₹0</h3>
+    <div class="row g-3 mb-4 text-center">
+        <div class="col-md-3 col-6">
+            <div class="card farmer-glass-card h-100">
+                <div class="card-body p-3">
+                    <span class="text-muted text-uppercase small" style="font-size: 0.8rem;">Total Investment</span>
+                    <h3 class="fw-bold text-light mt-1 mb-0" id="summary-investment">₹0</h3>
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-warning h-100">
-                <div class="card-body">
-                    <h6 class="text-muted text-uppercase mb-1">Total Yield</h6>
-                    <h3 class="fw-bold text-dark" id="summary-yield">0 kg</h3>
+        <div class="col-md-3 col-6">
+            <div class="card farmer-glass-card h-100">
+                <div class="card-body p-3">
+                    <span class="text-muted text-uppercase small" style="font-size: 0.8rem;">Recorded Yield</span>
+                    <h3 class="fw-bold text-light mt-1 mb-0" id="summary-yield">0 kg</h3>
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-success h-100">
-                <div class="card-body">
-                    <h6 class="text-muted text-uppercase mb-1">Net Profit</h6>
-                    <h3 class="fw-bold text-success" id="summary-profit">₹0</h3>
+        <div class="col-md-3 col-6">
+            <div class="card farmer-glass-card h-100">
+                <div class="card-body p-3">
+                    <span class="text-muted text-uppercase small" style="font-size: 0.8rem;">Net Harvest Profit</span>
+                    <h3 class="fw-bold mt-1 mb-0" style="color: #b4e639 !important;" id="summary-profit">₹0</h3>
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-primary h-100">
-                <div class="card-body">
-                    <h6 class="text-muted text-uppercase mb-1">Profit Margin</h6>
-                    <h3 class="fw-bold text-primary" id="summary-margin">0%</h3>
+        <div class="col-md-3 col-6">
+            <div class="card farmer-glass-card h-100">
+                <div class="card-body p-3">
+                    <span class="text-muted text-uppercase small" style="font-size: 0.8rem;">Profit Margin</span>
+                    <h3 class="fw-bold text-info mt-1 mb-0" id="summary-margin">0%</h3>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-4 mb-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0 fw-bold">Active Sessions</h5>
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card farmer-glass-card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold text-success">🌱 Active Field Plots</h5>
                 </div>
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush" id="session-list">
                         <!-- Populated by JS -->
                     </div>
                 </div>
-                <div class="card-footer bg-white text-center">
-                    <button class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#newSessionModal">+ Start New Session</button>
+                <div class="card-footer p-3 border-0 bg-transparent text-center">
+                    <button class="farmer-btn-primary w-100 py-2" data-bs-toggle="modal" data-bs-target="#newSessionModal">+ Register New Field Plot</button>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-8 mb-4">
-            <div class="card shadow-sm h-100 d-none" id="manage-session-card">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-bold" id="manage-session-title">Manage Session</h5>
-                    <button class="btn btn-sm btn-outline-warning fw-bold" onclick="harvestSession()">🌾 Harvest & Complete</button>
+        <div class="col-md-8">
+            <div class="card farmer-glass-card h-100 d-none" id="manage-session-card">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <h5 class="mb-0 fw-bold text-success" id="manage-session-title">Manage Session</h5>
+                    <button class="btn btn-sm btn-outline-warning fw-bold px-3 py-1" onclick="harvestSession()">🌾 Harvest & Complete</button>
                 </div>
-                <div class="card-body">
-                    <h6 class="fw-bold border-bottom pb-2">Log Daily Data</h6>
+                <div class="card-body p-4">
+                    <h6 class="fw-bold text-success border-bottom border-secondary pb-2 mb-3">📝 Log Field Daily Activities</h6>
                     <form id="daily-log-form">
-                        <div class="row mb-3">
+                        <div class="row g-3 mb-3">
                             <div class="col-md-6">
-                                <label class="form-label">Watered Today?</label>
-                                <select class="form-select" id="log-watered">
-                                    <option value="true">Yes</option>
+                                <label class="farmer-input-label">Watered Today?</label>
+                                <select class="farmer-input-field w-100" id="log-watered">
+                                    <option value="true">Yes (Irrigated)</option>
+                                    <option value="false">No (Dry cycle)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="farmer-input-label">Reason / Observation</label>
+                                <input type="text" class="farmer-input-field w-100" id="log-water-reason" placeholder="e.g. Drip line ran for 2 hours">
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="farmer-input-label">Fertilized Today?</label>
+                                <select class="farmer-input-field w-100" id="log-fertilized" onchange="document.getElementById('log-fert-amount').disabled = (this.value === 'false'); if(this.value === 'false') document.getElementById('log-fert-amount').value = '0';">
                                     <option value="false">No</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Reason</label>
-                                <input type="text" class="form-control" id="log-water-reason" placeholder="e.g., Soil was dry">
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Fertilized Today?</label>
-                                <select class="form-select" id="log-fertilized" onchange="document.getElementById('log-fert-amount').disabled = (this.value === 'false'); if(this.value === 'false') document.getElementById('log-fert-amount').value = '0';">
-                                    <option value="false">No</option>
                                     <option value="true">Yes</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label" id="log-fert-label">Fertilizer Amount (kg/lit)</label>
-                                <input type="number" class="form-control" id="log-fert-amount" value="0" step="0.1" disabled>
+                                <label class="farmer-input-label" id="log-fert-label">Fertilizer Quantity (kg / L)</label>
+                                <input type="number" class="farmer-input-field w-100" id="log-fert-amount" value="0" step="0.1" disabled>
                             </div>
                         </div>
-                        <div class="row mb-3">
+                        <div class="row g-3 mb-3">
                             <div class="col-md-6">
-                                <label class="form-label">Weather Condition</label>
-                                <select class="form-select" id="log-weather">
-                                    <option>Sunny</option>
-                                    <option>Rainy</option>
-                                    <option>Cloudy</option>
+                                <label class="farmer-input-label">Observed Weather</label>
+                                <select class="farmer-input-field w-100" id="log-weather">
+                                    <option>Sunny / Clear</option>
+                                    <option>Rainy / Showers</option>
+                                    <option>Cloudy / Overcast</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Notes</label>
-                                <input type="text" class="form-control" id="log-notes" placeholder="e.g., Leaves look healthy">
+                                <label class="farmer-input-label">Field Notes</label>
+                                <input type="text" class="farmer-input-field w-100" id="log-notes" placeholder="e.g. Good vegetative growth, no pests">
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">Submit Daily Log</button>
+                        <button type="submit" class="farmer-btn-primary w-100 py-2 mt-2">Submit Daily Log Record</button>
                     </form>
                     
-                    <h6 class="fw-bold border-bottom pb-2 mt-4">Daily Logs History</h6>
-                    <div style="max-height: 200px; overflow-y: auto;">
+                    <h6 class="fw-bold text-success border-bottom border-secondary pb-2 mt-4 mb-3">📜 Plot Daily Log History</h6>
+                    <div style="max-height: 240px; overflow-y: auto;">
                         <ul class="list-group" id="daily-logs-history">
                             <!-- Populated by JS -->
                         </ul>
@@ -938,8 +1228,10 @@ function googleTranslateElementInit() {
                 </div>
             </div>
             
-            <div class="text-center p-5 text-muted" id="no-session-selected">
-                <h4>Select a session to manage</h4>
+            <div class="card farmer-glass-card text-center p-5" id="no-session-selected">
+                <div style="font-size: 3rem; margin-bottom: 0.5rem;">🌱</div>
+                <h4 class="text-light fw-bold">Select an Active Plot</h4>
+                <p class="text-muted mb-0">Choose a plot from the left panel to update daily watering, fertilizer logs, or trigger harvest completion.</p>
             </div>
         </div>
     </div>
@@ -948,67 +1240,67 @@ function googleTranslateElementInit() {
 <!-- New Session Modal -->
 <div class="modal fade" id="newSessionModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
-    <div class="modal-content">
+    <div class="modal-content farmer-glass-card" style="background: rgba(14, 24, 15, 0.98) !important;">
       <form id="new-session-form">
-      <div class="modal-header">
-        <h5 class="modal-title fw-bold">Start New Farming Session</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      <div class="modal-header border-bottom" style="border-color: rgba(180, 230, 57, 0.2) !important;">
+        <h5 class="modal-title fw-bold text-success">🌱 Register New Crop Plot Session</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
-        <h6 class="fw-bold text-success border-bottom pb-1">Basic Info</h6>
-        <div class="row mb-3">
+      <div class="modal-body p-4">
+        <h6 class="fw-bold text-success border-bottom border-secondary pb-1 mb-3">Plot Specifications</h6>
+        <div class="row g-3 mb-3">
             <div class="col-md-6">
-                <label class="form-label">Crop Type</label>
-                <input type="text" class="form-control" id="ns-crop" required placeholder="e.g., Tomato">
+                <label class="farmer-input-label">Crop Name</label>
+                <input type="text" class="farmer-input-field w-100" id="ns-crop" required placeholder="e.g. Tomato, Rice, Maize">
             </div>
             <div class="col-md-6">
-                <label class="form-label">Plot Name</label>
-                <input type="text" class="form-control" id="ns-plot" required placeholder="e.g., Plot A">
+                <label class="farmer-input-label">Plot Identifier</label>
+                <input type="text" class="farmer-input-field w-100" id="ns-plot" required placeholder="e.g. North Acre - Plot A">
             </div>
         </div>
-        <div class="row mb-3">
+        <div class="row g-3 mb-3">
             <div class="col-md-4">
-                <label class="form-label">Area (Cents)</label>
-                <input type="number" class="form-control" id="ns-area" required>
+                <label class="farmer-input-label">Land Area (Cents)</label>
+                <input type="number" class="farmer-input-field w-100" id="ns-area" required placeholder="e.g. 50">
             </div>
             <div class="col-md-4">
-                <label class="form-label">Soil Type</label>
-                <input type="text" class="form-control" id="ns-soil" required placeholder="e.g., Loam">
+                <label class="farmer-input-label">Soil Type</label>
+                <input type="text" class="farmer-input-field w-100" id="ns-soil" required placeholder="e.g. Loam / Black Soil">
             </div>
             <div class="col-md-4">
-                <label class="form-label">Location</label>
-                <input type="text" class="form-control" id="ns-location" required>
+                <label class="farmer-input-label">Farm Location</label>
+                <input type="text" class="farmer-input-field w-100" id="ns-location" required placeholder="e.g. Village / Taluk">
             </div>
         </div>
 
-        <h6 class="fw-bold text-success border-bottom pb-1 mt-4">Initial Investment</h6>
-        <div class="row mb-3">
+        <h6 class="fw-bold text-success border-bottom border-secondary pb-1 mt-4 mb-3">Initial Cost Investments</h6>
+        <div class="row g-3 mb-3">
             <div class="col-md-4">
-                <label class="form-label">Seed Qty</label>
-                <input type="number" class="form-control" id="ns-seed-qty" value="0" step="0.1">
+                <label class="farmer-input-label">Seed Quantity</label>
+                <input type="number" class="farmer-input-field w-100" id="ns-seed-qty" value="0" step="0.1">
             </div>
             <div class="col-md-4">
-                <label class="form-label">Cost per Seed (₹)</label>
-                <input type="number" class="form-control" id="ns-seed-cost" value="0" step="0.1">
+                <label class="farmer-input-label">Cost per Seed Unit (₹)</label>
+                <input type="number" class="farmer-input-field w-100" id="ns-seed-cost" value="0" step="0.1">
             </div>
             <div class="col-md-4">
-                <label class="form-label">Total Land Cost (₹)</label>
-                <input type="number" class="form-control" id="ns-land-cost" value="0" step="0.1">
+                <label class="farmer-input-label">Land Prep Cost (₹)</label>
+                <input type="number" class="farmer-input-field w-100" id="ns-land-cost" value="0" step="0.1">
             </div>
         </div>
-        <div class="row mb-3">
+        <div class="row g-3 mb-3">
             <div class="col-md-6">
-                <label class="form-label">Fertilizer Qty (Initial)</label>
-                <input type="number" class="form-control" id="ns-fert-qty" value="0" step="0.1">
+                <label class="farmer-input-label">Initial Fertilizer Qty (kg)</label>
+                <input type="number" class="farmer-input-field w-100" id="ns-fert-qty" value="0" step="0.1">
             </div>
             <div class="col-md-6">
-                <label class="form-label">Cost per Fertilizer Unit (₹)</label>
-                <input type="number" class="form-control" id="ns-fert-cost" value="0" step="0.1">
+                <label class="farmer-input-label">Fertilizer Rate per kg (₹)</label>
+                <input type="number" class="farmer-input-field w-100" id="ns-fert-cost" value="0" step="0.1">
             </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="submit" class="btn btn-success fw-bold w-100">Create Session</button>
+      <div class="modal-footer border-top" style="border-color: rgba(180, 230, 57, 0.2) !important;">
+        <button type="submit" class="farmer-btn-primary w-100 py-3">Start Field Session</button>
       </div>
       </form>
     </div>
@@ -1020,143 +1312,151 @@ function googleTranslateElementInit() {
 <!-- ========================================== -->
 <div class="container mb-5 d-none" id="animal-farm-view">
     <div class="row mb-4">
-        <div class="col-12 view-header">
-            <h2>🐾 Livestock Management</h2>
-            <p>Track your dairy cows, poultry, goats, and more!</p>
+        <div class="col-12 farmer-view-header">
+            <h2>🐾 Livestock & Herd Management</h2>
+            <p>Track dairy cows, poultry flocks, and goats — monitor daily feeding, yield production, veterinary care, and profitability.</p>
         </div>
+    </div>
+
+    <!-- Farmer Journey ribbon -->
+    <div class="farmer-journey-bar">
+        <a href="#" class="journey-step" onclick="showView('plantfarm'); return false;"><span class="step-num">1</span> 🌾 Crop Plots</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step active" onclick="showView('animalfarm'); return false;"><span class="step-num">2</span> 🐾 Livestock Herds</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('analysis'); return false;"><span class="step-num">3</span> 📊 Farm Analytics</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('market'); return false;"><span class="step-num">4</span> 📈 Market Intel</a>
     </div>
     
     <!-- Financial Summary Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-light border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <h6 class="text-muted text-uppercase mb-1">Total Inv.</h6>
-                    <h3 class="fw-bold text-dark mb-0" id="animal-summary-investment">₹0</h3>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="card farmer-glass-card h-100">
+                <div class="card-body p-3 text-center">
+                    <span class="text-muted text-uppercase small" style="font-size: 0.8rem;">Total Investment</span>
+                    <h3 class="fw-bold text-light mt-1 mb-0" id="animal-summary-investment">₹0</h3>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-light border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <h6 class="text-muted text-uppercase mb-1">Total Yield</h6>
-                    <h3 class="fw-bold text-primary mb-0" id="animal-summary-yield">0</h3>
+        <div class="col-md-3 col-6">
+            <div class="card farmer-glass-card h-100">
+                <div class="card-body p-3 text-center">
+                    <span class="text-muted text-uppercase small" style="font-size: 0.8rem;">Recorded Yield</span>
+                    <h3 class="fw-bold text-info mt-1 mb-0" id="animal-summary-yield">0</h3>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-light border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <h6 class="text-muted text-uppercase mb-1">Total Sales</h6>
-                    <h3 class="fw-bold text-success mb-0" id="animal-summary-sales">₹0</h3>
+        <div class="col-md-3 col-6">
+            <div class="card farmer-glass-card h-100">
+                <div class="card-body p-3 text-center">
+                    <span class="text-muted text-uppercase small" style="font-size: 0.8rem;">Total Sales Revenue</span>
+                    <h3 class="fw-bold mt-1 mb-0" style="color: #b4e639 !important;" id="animal-summary-sales">₹0</h3>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-primary text-white border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <h6 class="text-white-50 text-uppercase mb-1">Net Profit</h6>
-                    <h3 class="fw-bold mb-0" id="animal-summary-profit">₹0</h3>
-                    <small class="d-block mt-1 bg-white text-primary rounded px-2 py-1 fw-bold" id="animal-summary-margin">0%</small>
+        <div class="col-md-3 col-6">
+            <div class="card farmer-glass-card h-100" style="border: 1px solid rgba(180, 230, 57, 0.4) !important;">
+                <div class="card-body p-3 text-center">
+                    <span class="text-muted text-uppercase small" style="font-size: 0.8rem;">Net Profit</span>
+                    <h3 class="fw-bold text-success mt-1 mb-0" id="animal-summary-profit">₹0</h3>
+                    <small class="badge bg-success-subtle text-success border border-success px-2 py-1 mt-1 fw-bold" id="animal-summary-margin">0%</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row">
+    <div class="row g-4">
         <!-- Left Col: Sessions List -->
-        <div class="col-md-4 mb-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-bold">Active Herds/Flocks</h5>
-                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newAnimalSessionModal">+ New Session</button>
+        <div class="col-md-4">
+            <div class="card farmer-glass-card h-100">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <h5 class="mb-0 fw-bold text-success">🐾 Active Herds / Flocks</h5>
+                    <button class="farmer-btn-primary py-1 px-3" style="font-size: 0.85rem;" data-bs-toggle="modal" data-bs-target="#newAnimalSessionModal">+ New Herd</button>
                 </div>
                 <div class="list-group list-group-flush" id="animal-session-list">
-                    <div class="p-3 text-muted text-center">Loading...</div>
+                    <div class="p-4 text-muted text-center">Loading herds...</div>
                 </div>
             </div>
         </div>
         
         <!-- Right Col: Manage Selected Session -->
-        <div class="col-md-8 mb-4">
-            <div class="card shadow-sm h-100 d-none" id="manage-animal-session-card">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-bold text-primary" id="manage-animal-session-title">Manage Session</h5>
-                    <button class="btn btn-sm btn-outline-danger fw-bold" onclick="closeAnimalSession()">🛑 Close Session</button>
+        <div class="col-md-8">
+            <div class="card farmer-glass-card h-100 d-none" id="manage-animal-session-card">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <h5 class="mb-0 fw-bold text-success" id="manage-animal-session-title">Manage Livestock Session</h5>
+                    <button class="btn btn-sm btn-outline-danger fw-bold px-3 py-1" onclick="closeAnimalSession()">🛑 Close Session</button>
                 </div>
-                <div class="card-body">
-                    <h6 class="fw-bold border-bottom pb-2">Log Daily Data</h6>
+                <div class="card-body p-4">
+                    <h6 class="fw-bold text-success border-bottom border-secondary pb-2 mb-3">📝 Log Daily Feed, Yield & Health</h6>
                     <form id="animal-daily-log-form">
-                        <div class="row mb-3">
+                        <div class="row g-3 mb-3">
                             <div class="col-md-6">
-                                <label class="form-label">Food Given (kg)</label>
-                                <input type="number" class="form-control" id="animal-log-food" step="0.1" required>
+                                <label class="farmer-input-label">Feed Given (kg)</label>
+                                <input type="number" class="farmer-input-field w-100" id="animal-log-food" step="0.1" required>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Food Cost (₹)</label>
-                                <input type="number" class="form-control" id="animal-log-food-cost" step="0.1" required>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Yield (Liters / Eggs)</label>
-                                <input type="number" class="form-control" id="animal-log-yield" step="0.1" value="0">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Selling Price (per unit ₹)</label>
-                                <input type="number" class="form-control" id="animal-log-yield-price" step="0.1" value="0">
+                                <label class="farmer-input-label">Feed Cost (₹)</label>
+                                <input type="number" class="farmer-input-field w-100" id="animal-log-food-cost" step="0.1" required>
                             </div>
                         </div>
-                        <div class="row mb-3">
+                        <div class="row g-3 mb-3">
                             <div class="col-md-6">
-                                <label class="form-label">Medicine Given?</label>
-                                <select class="form-select" id="animal-log-medicine" onchange="document.getElementById('animal-log-med-details').classList.toggle('d-none', this.value === 'false')">
+                                <label class="farmer-input-label">Yield Production (Liters / Eggs)</label>
+                                <input type="number" class="farmer-input-field w-100" id="animal-log-yield" step="0.1" value="0">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="farmer-input-label">Unit Selling Price (₹)</label>
+                                <input type="number" class="farmer-input-field w-100" id="animal-log-yield-price" step="0.1" value="0">
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="farmer-input-label">Veterinary Medicine Administered?</label>
+                                <select class="farmer-input-field w-100" id="animal-log-medicine" onchange="document.getElementById('animal-log-med-details').classList.toggle('d-none', this.value === 'false')">
                                     <option value="false">No</option>
                                     <option value="true">Yes</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Deaths Today?</label>
-                                <input type="number" class="form-control" id="animal-log-deaths" value="0" min="0">
+                                <label class="farmer-input-label">Mortality Count Today</label>
+                                <input type="number" class="farmer-input-field w-100" id="animal-log-deaths" value="0" min="0">
                             </div>
                         </div>
-                        <div class="row mb-3 d-none" id="animal-log-med-details">
+                        <div class="row g-3 mb-3 d-none" id="animal-log-med-details">
                             <div class="col-md-4">
-                                <label class="form-label">Med Name</label>
-                                <input type="text" class="form-control" id="animal-log-med-name">
+                                <label class="farmer-input-label">Medicine / Vaccine Name</label>
+                                <input type="text" class="farmer-input-field w-100" id="animal-log-med-name">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Med Cost (₹)</label>
-                                <input type="number" class="form-control" id="animal-log-med-cost" value="0">
+                                <label class="farmer-input-label">Medicine Cost (₹)</label>
+                                <input type="number" class="farmer-input-field w-100" id="animal-log-med-cost" value="0">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Reason</label>
-                                <input type="text" class="form-control" id="animal-log-med-reason">
+                                <label class="farmer-input-label">Treatment Reason</label>
+                                <input type="text" class="farmer-input-field w-100" id="animal-log-med-reason">
                             </div>
                         </div>
-                        <div class="row mb-3">
+                        <div class="row g-3 mb-3">
                             <div class="col-md-12">
-                                <label class="form-label">Notes</label>
-                                <input type="text" class="form-control" id="animal-log-notes" placeholder="e.g., Cow #3 looks lethargic">
+                                <label class="farmer-input-label">Observations & Care Notes</label>
+                                <input type="text" class="farmer-input-field w-100" id="animal-log-notes" placeholder="e.g. Healthy appetite, milk yield stable">
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 fw-bold">Submit Daily Log</button>
+                        <button type="submit" class="farmer-btn-primary w-100 py-2 mt-2">Submit Daily Livestock Log</button>
                     </form>
                     
-                    <h6 class="fw-bold mt-5 border-bottom pb-2">History</h6>
-                    <ul class="list-group list-group-flush" id="animal-daily-logs-history" style="max-height: 400px; overflow-y: auto;">
-                        <li class="list-group-item text-muted text-center">No logs yet.</li>
+                    <h6 class="fw-bold text-success border-bottom border-secondary pb-2 mt-4 mb-3">📜 Livestock Log History</h6>
+                    <ul class="list-group" id="animal-daily-logs-history" style="max-height: 280px; overflow-y: auto;">
+                        <li class="list-group-item text-muted text-center">No logs recorded yet.</li>
                     </ul>
                 </div>
             </div>
             
-            <div class="card shadow-sm h-100" id="animal-no-session-selected">
-                <div class="card-body d-flex justify-content-center align-items-center text-muted h-100" style="min-height: 300px;">
-                    <div class="text-center">
-                        <h4 class="text-secondary">🐾 No Session Selected</h4>
-                        <p>Select an active herd/flock from the list on the left to manage it.</p>
-                    </div>
-                </div>
+            <div class="card farmer-glass-card text-center p-5" id="animal-no-session-selected">
+                <div style="font-size: 3rem; margin-bottom: 0.5rem;">🐾</div>
+                <h4 class="text-light fw-bold">Select an Active Herd</h4>
+                <p class="text-muted mb-0">Choose a livestock herd or flock from the left panel to update daily feed, yield, medical care, or view financial records.</p>
             </div>
         </div>
     </div>
@@ -1165,64 +1465,64 @@ function googleTranslateElementInit() {
 <!-- Modal: New Animal Session -->
 <div class="modal fade" id="newAnimalSessionModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title fw-bold">🐾 Start New Animal Session</h5>
+    <div class="modal-content farmer-glass-card" style="background: rgba(14, 24, 15, 0.98) !important;">
+      <div class="modal-header border-bottom" style="border-color: rgba(180, 230, 57, 0.2) !important;">
+        <h5 class="modal-title fw-bold text-success">🐾 Register New Livestock Herd</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form id="new-animal-session-form">
-      <div class="modal-body">
-        <h6 class="text-muted border-bottom pb-2 mb-3">1. Basic Info</h6>
-        <div class="row mb-3">
+      <div class="modal-body p-4">
+        <h6 class="fw-bold text-success border-bottom border-secondary pb-1 mb-3">1. Herd Details</h6>
+        <div class="row g-3 mb-3">
             <div class="col-md-6">
-                <label class="form-label">Animal Type</label>
-                <select class="form-select" id="nas-type" required>
-                    <option value="Cow">Cow</option>
-                    <option value="Hen">Hen</option>
-                    <option value="Goat">Goat</option>
-                    <option value="Duck">Duck</option>
+                <label class="farmer-input-label">Livestock Category</label>
+                <select class="farmer-input-field w-100" id="nas-type" required>
+                    <option value="Cow">Dairy Cow / Buffalo</option>
+                    <option value="Hen">Poultry (Hens/Broilers)</option>
+                    <option value="Goat">Goats / Sheep</option>
+                    <option value="Duck">Duck / Waterfowl</option>
                 </select>
             </div>
             <div class="col-md-6">
-                <label class="form-label">Session/Herd Name</label>
-                <input type="text" class="form-control" id="nas-name" placeholder="e.g., Plot B Dairy Cows" required>
+                <label class="farmer-input-label">Herd / Flock Title</label>
+                <input type="text" class="farmer-input-field w-100" id="nas-name" placeholder="e.g. Shed 1 - HF Milking Cows" required>
             </div>
         </div>
         
-        <h6 class="text-muted border-bottom pb-2 mb-3 mt-4">2. Initial Investment</h6>
-        <div class="row mb-3">
+        <h6 class="fw-bold text-success border-bottom border-secondary pb-1 mt-4 mb-3">2. Initial Acquisition & Setup</h6>
+        <div class="row g-3 mb-3">
             <div class="col-md-6">
-                <label class="form-label">Number of Animals</label>
-                <input type="number" class="form-control" id="nas-count" required>
+                <label class="farmer-input-label">Animal Head Count</label>
+                <input type="number" class="farmer-input-field w-100" id="nas-count" required>
             </div>
             <div class="col-md-6">
-                <label class="form-label">Cost per Animal (₹)</label>
-                <input type="number" class="form-control" id="nas-cost" required>
-            </div>
-        </div>
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label class="form-label">Initial Food Bought (kg)</label>
-                <input type="number" class="form-control" id="nas-food-qty" required>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">Cost per kg Food (₹)</label>
-                <input type="number" class="form-control" id="nas-food-cost" required>
+                <label class="farmer-input-label">Acquisition Cost per Animal (₹)</label>
+                <input type="number" class="farmer-input-field w-100" id="nas-cost" required>
             </div>
         </div>
-        <div class="row mb-3">
+        <div class="row g-3 mb-3">
             <div class="col-md-6">
-                <label class="form-label">Initial Med/Vaccine Cost (₹)</label>
-                <input type="number" class="form-control" id="nas-med-cost" value="0">
+                <label class="farmer-input-label">Initial Feed Stock (kg)</label>
+                <input type="number" class="farmer-input-field w-100" id="nas-food-qty" required>
             </div>
             <div class="col-md-6">
-                <label class="form-label">Shelter/Coop Cost (₹)</label>
-                <input type="number" class="form-control" id="nas-shelter-cost" value="0">
+                <label class="farmer-input-label">Feed Rate per kg (₹)</label>
+                <input type="number" class="farmer-input-field w-100" id="nas-food-cost" required>
+            </div>
+        </div>
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label class="farmer-input-label">Initial Veterinary / Vaccination Cost (₹)</label>
+                <input type="number" class="farmer-input-field w-100" id="nas-med-cost" value="0">
+            </div>
+            <div class="col-md-6">
+                <label class="farmer-input-label">Shelter / Shed Construction Cost (₹)</label>
+                <input type="number" class="farmer-input-field w-100" id="nas-shelter-cost" value="0">
             </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="submit" class="btn btn-primary fw-bold w-100">Start Session</button>
+      <div class="modal-footer border-top" style="border-color: rgba(180, 230, 57, 0.2) !important;">
+        <button type="submit" class="farmer-btn-primary w-100 py-3">Register Herd Session</button>
       </div>
       </form>
     </div>
@@ -1232,25 +1532,25 @@ function googleTranslateElementInit() {
 <!-- Modal: Close Animal Session -->
 <div class="modal fade" id="closeAnimalSessionModal" tabindex="-1">
   <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header bg-danger text-white">
-        <h5 class="modal-title fw-bold">🛑 Close Livestock Session</h5>
+    <div class="modal-content farmer-glass-card" style="background: rgba(14, 24, 15, 0.98) !important;">
+      <div class="modal-header border-bottom border-danger">
+        <h5 class="modal-title fw-bold text-danger">🛑 Close Livestock Session</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form id="close-animal-session-form">
-      <div class="modal-body">
-        <p class="text-muted mb-3">Closing this session means the animals have been sold or the season has ended. Please enter the final sale details.</p>
+      <div class="modal-body p-4">
+        <p class="text-muted mb-3">Closing this session marks the livestock cycle completed or sold. Enter the final sale liquidation details.</p>
         <div class="mb-3">
-            <label class="form-label">Total Animals Sold</label>
-            <input type="number" class="form-control" id="cas-animals-sold" required min="0">
+            <label class="farmer-input-label">Total Animals Sold</label>
+            <input type="number" class="farmer-input-field w-100" id="cas-animals-sold" required min="0">
         </div>
         <div class="mb-3">
-            <label class="form-label">Selling Price per Animal (₹)</label>
-            <input type="number" class="form-control" id="cas-animal-price" required step="0.1" min="0">
+            <label class="farmer-input-label">Sale Price per Animal (₹)</label>
+            <input type="number" class="farmer-input-field w-100" id="cas-animal-price" required step="0.1" min="0">
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="submit" class="btn btn-danger fw-bold w-100">Confirm & Close Session</button>
+      <div class="modal-footer border-top" style="border-color: rgba(220, 53, 69, 0.3) !important;">
+        <button type="submit" class="btn btn-danger fw-bold w-100 py-2">Confirm & Close Session</button>
       </div>
       </form>
     </div>
@@ -1259,57 +1559,78 @@ function googleTranslateElementInit() {
 
 <div class="container mb-5 d-none" id="analysis-dashboard-view">
     <div class="row mb-4">
-        <div class="col-12 view-header">
-            <h2>📊 Farm Analysis</h2>
-            <p>Analyze your investments, profits, and losses across all plant and livestock farming sessions.</p>
+        <div class="col-12 farmer-view-header">
+            <h2>📊 Agricultural Financial & Yield Analytics</h2>
+            <p>Comprehensive cost breakdown, harvest revenue efficiency, crop distribution, and seasonal profitability leaderboards.</p>
         </div>
     </div>
+
+    <!-- Farmer Journey ribbon -->
+    <div class="farmer-journey-bar">
+        <a href="#" class="journey-step" onclick="showView('plantfarm'); return false;"><span class="step-num">1</span> 🌾 Crop Plots</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('animalfarm'); return false;"><span class="step-num">2</span> 🐾 Livestock Herds</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step active" onclick="showView('analysis'); return false;"><span class="step-num">3</span> 📊 Farm Analytics</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('market'); return false;"><span class="step-num">4</span> 📈 Market Intel</a>
+    </div>
     
-    <div class="row">
+    <div class="row g-4">
         <!-- Left Navigation Bar -->
-        <div class="col-md-3 mb-4">
-            <div class="accordion shadow-sm" id="analyticsSidebarAccordion">
-                
-                <!-- Plant Dash Accordion Item -->
-                <div class="accordion-item border-0 mb-2 rounded overflow-hidden shadow-sm">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button fw-bold text-success" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePlantDash">
-                            🌱 Plant Dash
-                        </button>
-                    </h2>
-                    <div id="collapsePlantDash" class="accordion-collapse collapse show" data-bs-parent="#analyticsSidebarAccordion">
-                        <div class="accordion-body p-0">
-                            <div class="list-group list-group-flush" id="analytics-plant-nav">
-                                <a href="#" class="list-group-item list-group-item-action active fw-bold" onclick="switchAnalyticsTab('plant'); return false;">All Plant Sessions</a>
-                                <div class="bg-light p-2 small fw-bold text-muted border-bottom border-top">Active Sessions</div>
-                                <div id="analytics-plant-active"></div>
-                                <div class="bg-light p-2 small fw-bold text-muted border-bottom border-top">Completed Sessions</div>
-                                <div id="analytics-plant-completed"></div>
-                            </div>
-                        </div>
-                    </div>
+        <div class="col-md-3">
+            <div class="card farmer-glass-card mb-4 p-3">
+                <h6 class="fw-bold text-success mb-3">📁 Select Enterprise</h6>
+                <div class="d-flex flex-column gap-2 mb-3">
+                    <button class="farmer-btn-primary py-2 px-3 justify-content-start" onclick="switchAnalyticsTab('plant'); return false;">
+                        🌱 Crop Plots Analytics
+                    </button>
+                    <button class="btn btn-outline-success text-start py-2 px-3 fw-bold rounded-3" style="border-color: rgba(180, 230, 57, 0.4); color: #d8edd1;" onclick="switchAnalyticsTab('animal'); return false;">
+                        🐾 Livestock Herds Analytics
+                    </button>
                 </div>
 
-                <!-- Animal Dash Accordion Item -->
-                <div class="accordion-item border-0 rounded overflow-hidden shadow-sm">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed fw-bold text-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAnimalDash">
-                            🐾 Animal Dash
-                        </button>
-                    </h2>
-                    <div id="collapseAnimalDash" class="accordion-collapse collapse" data-bs-parent="#analyticsSidebarAccordion">
-                        <div class="accordion-body p-0">
-                            <div class="list-group list-group-flush" id="analytics-animal-nav">
-                                <a href="#" class="list-group-item list-group-item-action fw-bold" onclick="switchAnalyticsTab('animal'); return false;">All Animal Sessions</a>
-                                <div class="bg-light p-2 small fw-bold text-muted border-bottom border-top">Active Sessions</div>
-                                <div id="analytics-animal-active"></div>
-                                <div class="bg-light p-2 small fw-bold text-muted border-bottom border-top">Completed Sessions</div>
-                                <div id="analytics-animal-completed"></div>
+                <div class="accordion" id="analyticsSidebarAccordion">
+                    <!-- Plant Dash Accordion Item -->
+                    <div class="accordion-item bg-transparent border-0 mb-2">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button fw-bold text-light bg-dark-50 rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePlantDash" style="border: 1px solid rgba(180, 230, 57, 0.2);">
+                                🌱 Plot Sessions
+                            </button>
+                        </h2>
+                        <div id="collapsePlantDash" class="accordion-collapse collapse show" data-bs-parent="#analyticsSidebarAccordion">
+                            <div class="accordion-body p-0 mt-2">
+                                <div class="list-group list-group-flush" id="analytics-plant-nav">
+                                    <a href="#" class="list-group-item list-group-item-action active fw-bold" onclick="switchAnalyticsTab('plant'); return false;">All Plant Sessions</a>
+                                    <div class="p-2 small fw-bold text-muted border-bottom border-top" style="background: rgba(0,0,0,0.3);">Active Sessions</div>
+                                    <div id="analytics-plant-active"></div>
+                                    <div class="p-2 small fw-bold text-muted border-bottom border-top" style="background: rgba(0,0,0,0.3);">Completed Sessions</div>
+                                    <div id="analytics-plant-completed"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Animal Dash Accordion Item -->
+                    <div class="accordion-item bg-transparent border-0">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold text-light bg-dark-50 rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAnimalDash" style="border: 1px solid rgba(180, 230, 57, 0.2);">
+                                🐾 Livestock Sessions
+                            </button>
+                        </h2>
+                        <div id="collapseAnimalDash" class="accordion-collapse collapse" data-bs-parent="#analyticsSidebarAccordion">
+                            <div class="accordion-body p-0 mt-2">
+                                <div class="list-group list-group-flush" id="analytics-animal-nav">
+                                    <a href="#" class="list-group-item list-group-item-action fw-bold" onclick="switchAnalyticsTab('animal'); return false;">All Animal Sessions</a>
+                                    <div class="p-2 small fw-bold text-muted border-bottom border-top" style="background: rgba(0,0,0,0.3);">Active Sessions</div>
+                                    <div id="analytics-animal-active"></div>
+                                    <div class="p-2 small fw-bold text-muted border-bottom border-top" style="background: rgba(0,0,0,0.3);">Completed Sessions</div>
+                                    <div id="analytics-animal-completed"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                
             </div>
         </div>
         
@@ -1317,263 +1638,197 @@ function googleTranslateElementInit() {
         <div class="col-md-9">
             <!-- Plant Analytics Content -->
             <div id="plant-analytics-section">
-                <h4 class="mb-4 text-success fw-bold border-bottom pb-2 mt-2">🌱 Plant Analytics</h4>
-                <div class="row">
-                    <!-- Left Column: Charts -->
-        <div class="col-lg-8">
-            <div class="row mb-4">
-                <div class="col-md-5 mb-4 mb-md-0">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header bg-white">
-                            <h5 class="mb-0 fw-bold">Cost Breakdown</h5>
+                <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-2 mb-4">
+                    <h4 class="mb-0 text-success fw-bold">🌱 Crop Plots Financial & Yield Intelligence</h4>
+                </div>
+                
+                <div class="row g-4">
+                    <div class="col-lg-8">
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-6">
+                                <div class="card farmer-glass-card h-100">
+                                    <div class="card-header">
+                                        <h6 class="mb-0 fw-bold text-success">💰 Input Cost Breakdown</h6>
+                                    </div>
+                                    <div class="card-body p-3">
+                                        <div style="position: relative; height: 240px; width: 100%;">
+                                            <canvas id="costBreakdownChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card farmer-glass-card h-100">
+                                    <div class="card-header">
+                                        <h6 class="mb-0 fw-bold text-success">⚡ Efficiency (Cost vs Yield)</h6>
+                                    </div>
+                                    <div class="card-body p-3">
+                                        <div style="position: relative; height: 240px; width: 100%;">
+                                            <canvas id="scatterChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <div style="position: relative; height: 250px; width: 100%;">
-                                <canvas id="costBreakdownChart"></canvas>
+                        
+                        <div class="row g-4 mb-4">
+                            <div class="col-12">
+                                <div class="card farmer-glass-card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0 fw-bold text-success">📈 Total Investment vs Revenue</h6>
+                                    </div>
+                                    <div class="card-body p-3">
+                                        <div style="position: relative; height: 240px; width: 100%;">
+                                            <canvas id="invRevChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-4 mb-4">
+                            <div class="col-12">
+                                <div class="card farmer-glass-card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0 fw-bold text-success">💵 Net Profit per Session</h6>
+                                    </div>
+                                    <div class="card-body p-3">
+                                        <div style="position: relative; height: 240px; width: 100%;">
+                                            <canvas id="profitChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-4">
+                            <div class="col-md-5">
+                                <div class="card farmer-glass-card h-100">
+                                    <div class="card-header">
+                                        <h6 class="mb-0 fw-bold text-success">🌾 Crop Diversity Distribution</h6>
+                                    </div>
+                                    <div class="card-body p-3">
+                                        <div style="position: relative; height: 240px; width: 100%;">
+                                            <canvas id="cropDistributionChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-7">
+                                <div class="card farmer-glass-card h-100">
+                                    <div class="card-header">
+                                        <h6 class="mb-0 fw-bold text-success">📅 Resource Usage Timeline</h6>
+                                    </div>
+                                    <div class="card-body p-3">
+                                        <div style="position: relative; height: 240px; width: 100%;">
+                                            <canvas id="resourceTimelineChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column: Leaderboard -->
+                    <div class="col-lg-4">
+                        <div class="card farmer-glass-card h-100" style="border: 1px solid rgba(255, 193, 7, 0.3) !important;">
+                            <div class="card-header d-flex align-items-center gap-2" style="background: rgba(255, 193, 7, 0.1) !important;">
+                                <span style="font-size: 1.2rem;">🏆</span>
+                                <h5 class="mb-0 fw-bold text-warning">High Revenue Board</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <ul class="list-group list-group-flush" id="revenue-leaderboard">
+                                    <li class="list-group-item text-center text-muted py-4">Loading leaderboard...</li>
+                                </ul>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-7">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header bg-white">
-                            <h5 class="mb-0 fw-bold">Efficiency (Scatter)</h5>
-                        </div>
-                        <div class="card-body">
-                            <div style="position: relative; height: 250px; width: 100%;">
-                                <canvas id="scatterChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-white">
-                            <h5 class="mb-0 fw-bold">Investment vs Revenue</h5>
-                        </div>
-                        <div class="card-body">
-                            <div style="position: relative; height: 250px; width: 100%;">
-                                <canvas id="invRevChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-white">
-                            <h5 class="mb-0 fw-bold">Net Profit per Session</h5>
-                        </div>
-                        <div class="card-body">
-                            <div style="position: relative; height: 250px; width: 100%;">
-                                <canvas id="profitChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="row mb-4">
-                <div class="col-md-5 mb-4 mb-md-0">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header bg-white">
-                            <h5 class="mb-0 fw-bold">Crop Distribution</h5>
-                        </div>
-                        <div class="card-body">
-                            <div style="position: relative; height: 250px; width: 100%;">
-                                <canvas id="cropDistributionChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-7">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header bg-white">
-                            <h5 class="mb-0 fw-bold">Resource Timeline</h5>
-                        </div>
-                        <div class="card-body">
-                            <div style="position: relative; height: 250px; width: 100%;">
-                                <canvas id="resourceTimelineChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Right Column: Leaderboard -->
-        <div class="col-lg-4">
-            <div class="card shadow-sm border-warning h-100">
-                <div class="card-header bg-warning text-dark">
-                    <h5 class="mb-0 fw-bold">🏆 High Revenue Board</h5>
-                </div>
-                <div class="card-body p-0">
-                    <ul class="list-group list-group-flush" id="revenue-leaderboard">
-                        <li class="list-group-item text-center text-muted py-4">Loading leaderboard...</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
             </div> <!-- End Plant Analytics Content -->
 
             <!-- Animal Analytics Content -->
             <div id="animal-analytics-section" class="d-none">
-                <h4 class="mb-4 text-primary fw-bold border-bottom pb-2 mt-2">🐾 Animal Analytics</h4>
-                <div class="row">
-        <!-- Main Charts Area -->
-        <div class="col-lg-8">
-            <div class="row">
-                <div class="col-md-6 mb-4">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body">
-                            <h5 class="card-title fw-bold text-center">Cost Breakdown (Animals vs Food vs Shelter)</h5>
-                            <div style="position: relative; height:250px; width:100%">
-                                <canvas id="animalCostBreakdownChart"></canvas>
+                <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-2 mb-4">
+                    <h4 class="mb-0 text-success fw-bold">🐾 Livestock Production & Efficiency Analytics</h4>
+                </div>
+                <div class="row g-4">
+                    <div class="col-lg-8">
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-6">
+                                <div class="card farmer-glass-card h-100">
+                                    <div class="card-body p-3">
+                                        <h6 class="card-title fw-bold text-success text-center mb-3">Cost Breakdown (Feed vs Care vs Herd)</h6>
+                                        <div style="position: relative; height:240px; width:100%">
+                                            <canvas id="animalCostBreakdownChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card farmer-glass-card h-100">
+                                    <div class="card-body p-3">
+                                        <h6 class="card-title fw-bold text-success text-center mb-3">Investment vs Revenue Efficiency</h6>
+                                        <div style="position: relative; height:240px; width:100%">
+                                            <canvas id="animalEfficiencyScatterChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-4">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body">
-                            <h5 class="card-title fw-bold text-center">Investment vs. Revenue (Efficiency)</h5>
-                            <div style="position: relative; height:250px; width:100%">
-                                <canvas id="animalEfficiencyScatterChart"></canvas>
+                        
+                        <div class="row g-4 mb-4">
+                            <div class="col-12">
+                                <div class="card farmer-glass-card">
+                                    <div class="card-body p-3">
+                                        <h6 class="card-title fw-bold text-success mb-3">Net Profit per Livestock Herd</h6>
+                                        <div style="position: relative; height:260px; width:100%">
+                                            <canvas id="animalProfitBarChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="row">
-                <div class="col-12 mb-4">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-body">
-                            <h5 class="card-title fw-bold">Net Profit per Session</h5>
-                            <div style="position: relative; height:300px; width:100%">
-                                <canvas id="animalProfitBarChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <div class="row">
-                <div class="col-md-5 mb-4">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body">
-                            <h5 class="card-title fw-bold text-center">Animal Distribution</h5>
-                            <div style="position: relative; height:250px; width:100%">
-                                <canvas id="animalDistributionChart"></canvas>
+                        <div class="row g-4">
+                            <div class="col-md-5">
+                                <div class="card farmer-glass-card h-100">
+                                    <div class="card-body p-3">
+                                        <h6 class="card-title fw-bold text-success text-center mb-3">Herd Distribution</h6>
+                                        <div style="position: relative; height:240px; width:100%">
+                                            <canvas id="animalDistributionChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-7">
+                                <div class="card farmer-glass-card h-100">
+                                    <div class="card-body p-3">
+                                        <h6 class="card-title fw-bold text-success text-center mb-3">Daily Yield & Feed Consumption</h6>
+                                        <div style="position: relative; height:240px; width:100%">
+                                            <canvas id="animalTimelineChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-7 mb-4">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body">
-                            <h5 class="card-title fw-bold text-center">Daily Yield & Food Timeline</h5>
-                            <div style="position: relative; height:250px; width:100%">
-                                <canvas id="animalTimelineChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Right Column: Leaderboard -->
-        <div class="col-lg-4">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body">
-                    <h4 class="card-title fw-bold mb-4 text-center">🏆 High Yield Board</h4>
-                    <p class="text-muted text-center small mb-4">Top performing livestock sessions ranked by total yield.</p>
                     
-                    <ul class="list-group list-group-flush" id="animal-leaderboard-list">
-                        <!-- Rendered dynamically -->
-                    </ul>
+                    <div class="col-lg-4">
+                        <div class="card farmer-glass-card h-100" style="border: 1px solid rgba(255, 193, 7, 0.3) !important;">
+                            <div class="card-body p-3">
+                                <h5 class="card-title fw-bold text-warning mb-2 text-center">🏆 High Yield Board</h5>
+                                <p class="text-muted text-center small mb-3">Top performing livestock herds ranked by total yield output.</p>
+                                
+                                <ul class="list-group list-group-flush" id="animal-leaderboard-list">
+                                    <!-- Rendered dynamically -->
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
             </div> <!-- End Animal Analytics Content -->
         </div> <!-- End Right Content Area -->
     </div> <!-- End Row -->
-
-</div>
-<!-- ========================================== -->
-<!-- UNIFIED FARM DASHBOARD VIEW                -->
-<!-- ========================================== -->
-<div class="container-fluid mb-5 d-none px-4" id="unified-dashboard-view">
-    <div class="row mb-3">
-        <div class="col-12 view-header text-center">
-            <h2>🚜 Unified Farm Dashboard</h2>
-            <p>Manage all your plant and animal sessions and view detailed analytics in one place.</p>
-        </div>
-    </div>
-    <div class="row">
-        <!-- LEFT SIDEBAR -->
-        <div class="col-md-3 mb-4">
-            <div class="accordion shadow-sm" id="farmSidebarAccordion">
-                <!-- Plant Analysis -->
-                <div class="accordion-item border-0 mb-3 rounded overflow-hidden shadow-sm">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button fw-bold bg-success text-white" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePlant">
-                            🌱 Plant Analysis
-                        </button>
-                    </h2>
-                    <div id="collapsePlant" class="accordion-collapse collapse show" data-bs-parent="#farmSidebarAccordion">
-                        <div class="accordion-body p-0">
-                            <div class="list-group list-group-flush" id="unified-plant-session-list">
-                                <!-- JS Populated -->
-                            </div>
-                            <div class="p-2 bg-light text-center border-top">
-                                <button class="btn btn-sm btn-success w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#newSessionModal">+ New Plant Session</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- Animal Analysis -->
-                <div class="accordion-item border-0 rounded overflow-hidden shadow-sm">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed fw-bold bg-primary text-white" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAnimal">
-                            🐾 Animal Analysis
-                        </button>
-                    </h2>
-                    <div id="collapseAnimal" class="accordion-collapse collapse" data-bs-parent="#farmSidebarAccordion">
-                        <div class="accordion-body p-0">
-                            <div class="list-group list-group-flush" id="unified-animal-session-list">
-                                <!-- JS Populated -->
-                            </div>
-                            <div class="p-2 bg-light text-center border-top">
-                                <button class="btn btn-sm btn-primary w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#newAnimalSessionModal">+ New Animal Session</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- RIGHT CONTENT AREA -->
-        <div class="col-md-9" id="unified-content-area">
-            <!-- Content will be injected here via JS from the old hidden views -->
-            <div class="card shadow-sm h-100" id="unified-welcome">
-                <div class="card-body d-flex justify-content-center align-items-center text-muted" style="min-height: 400px;">
-                    <div class="text-center">
-                        <h3 class="text-secondary mb-3">Welcome to Farm Dashboard</h3>
-                        <p>Expand "Plant Analysis" or "Animal Analysis" on the left.</p>
-                        <p>Select "Overall Analytics" or a specific session to view its dashboard.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <!-- ===================================== -->
@@ -1581,37 +1836,48 @@ function googleTranslateElementInit() {
 <!-- ===================================== -->
 <div class="container mb-5 d-none" id="market-intelligence-view">
     <div class="row mb-4">
-        <div class="col-12 view-header">
-            <h2>📈 Market Intelligence</h2>
-            <p>Price scenarios and selling recommendations tailored to your active farm sessions.</p>
+        <div class="col-12 farmer-view-header">
+            <h2>📈 Mandi Market Intelligence & Price Scenarios</h2>
+            <p>Commodity price trend projections, mandi distance comparisons, and optimal time-to-market advisory.</p>
         </div>
     </div>
 
-    <div class="alert alert-warning d-flex align-items-start" role="alert">
-        <span class="me-2">⚠️</span>
+    <!-- Farmer Journey ribbon -->
+    <div class="farmer-journey-bar">
+        <a href="#" class="journey-step" onclick="showView('plantfarm'); return false;"><span class="step-num">1</span> 🌾 Crop Plots</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('yield'); return false;"><span class="step-num">2</span> ⚖️ Harvest Yield</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step active" onclick="showView('market'); return false;"><span class="step-num">3</span> 📈 Market Intel</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('schemes'); return false;"><span class="step-num">4</span> 📜 Support Schemes</a>
+    </div>
+
+    <div class="alert farmer-glass-card d-flex align-items-start mb-4" role="alert" style="border-left: 4px solid #f59e0b !important;">
+        <span class="me-3" style="font-size: 1.5rem;">⚠️</span>
         <div>
-            <strong>Demonstration / simulated market data.</strong>
-            No live mandi or commodity-price feed is integrated. Every price, trend and
-            mandi distance below is generated deterministically for demonstration and
-            research-protocol purposes and must not be used for real trading decisions.
+            <strong class="text-warning">Demonstration / Simulated Mandi Market Data:</strong>
+            <span class="text-light">Every commodity price, trend vector, and mandi transport distance is computed deterministically for benchmark and research demonstration purposes.</span>
         </div>
     </div>
     
     <!-- Dynamic Market Dashboards -->
     <div id="market-commodities-container">
-        <div class="text-center py-5">
+        <div class="text-center py-5 text-light">
             <div class="spinner-border text-success" role="status"></div>
-            <p class="mt-2 text-muted">Analyzing your active sessions and fetching market data...</p>
+            <p class="mt-2 text-muted">Analyzing your active crop sessions and calculating mandi price scenarios...</p>
         </div>
     </div>
 
     <!-- Recommendations & News Row -->
-    <div class="row mt-4">
+    <div class="row g-4 mt-2">
         <!-- Smart Recommendations -->
-        <div class="col-lg-5 mb-4">
-            <div class="card shadow-sm border-0 h-100" style="border-left: 3px solid rgba(180, 230, 57, 0.4) !important;">
-                <div class="card-body">
-                    <h5 class="card-title fw-bold text-success mb-4"><i class="bi bi-lightbulb-fill"></i> Smart Selling Recommendations</h5>
+        <div class="col-lg-5">
+            <div class="card farmer-glass-card h-100" style="border-left: 4px solid #b4e639 !important;">
+                <div class="card-header">
+                    <h5 class="card-title fw-bold text-success mb-0">💡 Smart Mandi Selling Advisory</h5>
+                </div>
+                <div class="card-body p-3">
                     <div id="market-recommendations-list">
                         <!-- Populated by JS -->
                     </div>
@@ -1620,12 +1886,12 @@ function googleTranslateElementInit() {
         </div>
         
         <!-- Personalized News Feed -->
-        <div class="col-lg-7 mb-4">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white border-0 pt-4 pb-0">
-                    <h5 class="card-title fw-bold">📰 Personalized News Feed</h5>
+        <div class="col-lg-7">
+            <div class="card farmer-glass-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title fw-bold text-success mb-0">📰 Agricultural Intelligence News Bulletin</h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-3">
                     <div id="market-news-list" class="d-flex flex-column gap-3">
                         <!-- Populated by JS -->
                     </div>
@@ -1640,73 +1906,316 @@ function googleTranslateElementInit() {
 <!-- ===================================== -->
 <div class="container mb-5 d-none" id="profile-view">
     <div class="row mb-4">
-        <div class="col-12 view-header text-center text-md-start">
-            <h2>👤 User Profile & Account</h2>
-            <p>View your account details and farming statistics.</p>
+        <div class="col-12 farmer-view-header">
+            <h2>👤 Farmer Profile & Enterprise Statistics</h2>
+            <p>Account identity, verified landholding credentials, and lifetime agricultural activities.</p>
         </div>
     </div>
     
-    <div class="row justify-content-center">
-        <div class="col-md-5 mb-4">
-            <div class="card profile-card p-4 shadow-sm border-0">
+    <div class="row justify-content-center g-4">
+        <div class="col-md-5">
+            <div class="card farmer-glass-card p-4">
                 <div class="text-center mb-4">
-                    <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center mx-auto" style="width: 80px; height: 80px; font-size: 2.5rem; border: 3px solid rgba(40,167,69,0.3)">
+                    <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center mx-auto shadow" style="width: 84px; height: 84px; font-size: 2.6rem; border: 3px solid #b4e639">
                         <span id="profile-avatar-letter">U</span>
                     </div>
-                    <h3 class="fw-bold mt-3" id="profile-name">User Name</h3>
-                    <p class="text-muted small" id="profile-email">user@domain.com</p>
+                    <h3 class="fw-bold mt-3 text-light" id="profile-name">User Name</h3>
+                    <p class="text-muted small mb-0" id="profile-email">user@domain.com</p>
                 </div>
                 <hr class="border-secondary mb-4">
                 <div class="mb-3 d-flex justify-content-between align-items-center border-bottom border-secondary pb-2">
                     <span class="text-muted small">Account Status</span>
-                    <span class="badge bg-success">Verified Active</span>
+                    <span class="badge bg-success-subtle text-success border border-success px-3 py-1">Verified Active Farmer</span>
                 </div>
                 <div class="mb-3 d-flex justify-content-between align-items-center">
-                    <span class="text-muted small">Date Registered</span>
+                    <span class="text-muted small">Member Since</span>
                     <span class="fw-bold text-success" id="profile-joined">June 10, 2026</span>
                 </div>
                 <div class="mt-4 pt-2 border-top border-secondary">
-                    <button class="btn btn-danger w-100 fw-bold" onclick="handleLogout()">🚪 Logout</button>
+                    <button class="btn btn-outline-danger w-100 fw-bold py-2" onclick="handleLogout()">🚪 Sign Out of Farm Session</button>
                 </div>
             </div>
         </div>
         
-        <div class="col-md-7 mb-4">
-            <div class="card profile-card p-4 shadow-sm border-0 h-100">
-                <h4 class="fw-bold text-success border-bottom pb-2 mb-4">📊 System Usage Statistics</h4>
+        <div class="col-md-7">
+            <div class="card farmer-glass-card p-4 h-100">
+                <h5 class="fw-bold text-success border-bottom border-secondary pb-2 mb-4">📊 Agricultural Enterprise Statistics</h5>
                 <div class="row text-center g-3">
                     <div class="col-6 col-sm-4">
-                        <div class="border border-secondary rounded p-3 bg-dark-50">
-                            <h6 class="text-muted text-uppercase small" style="font-size:0.8rem">Total Crops</h6>
+                        <div class="farmer-stat-badge">
+                            <h6 class="text-muted text-uppercase small" style="font-size:0.78rem">Total Crops</h6>
                             <span class="stat-badge-glow text-light" id="stat-plant-count">0</span>
                         </div>
                     </div>
                     <div class="col-6 col-sm-4">
-                        <div class="border border-secondary rounded p-3 bg-dark-50">
-                            <h6 class="text-muted text-uppercase small" style="font-size:0.8rem">Active Crops</h6>
+                        <div class="farmer-stat-badge">
+                            <h6 class="text-muted text-uppercase small" style="font-size:0.78rem">Active Plots</h6>
                             <span class="stat-badge-glow text-success" id="stat-active-plant">0</span>
                         </div>
                     </div>
                     <div class="col-6 col-sm-4">
-                        <div class="border border-secondary rounded p-3 bg-dark-50">
-                            <h6 class="text-muted text-uppercase small" style="font-size:0.8rem">Livestock Herds</h6>
+                        <div class="farmer-stat-badge">
+                            <h6 class="text-muted text-uppercase small" style="font-size:0.78rem">Total Herds</h6>
                             <span class="stat-badge-glow text-light" id="stat-animal-count">0</span>
                         </div>
                     </div>
                     <div class="col-6 col-sm-4">
-                        <div class="border border-secondary rounded p-3 bg-dark-50">
-                            <h6 class="text-muted text-uppercase small" style="font-size:0.8rem">Active Herds</h6>
-                            <span class="stat-badge-glow text-primary" id="stat-active-animal">0</span>
+                        <div class="farmer-stat-badge">
+                            <h6 class="text-muted text-uppercase small" style="font-size:0.78rem">Active Herds</h6>
+                            <span class="stat-badge-glow text-info" id="stat-active-animal">0</span>
                         </div>
                     </div>
                     <div class="col-6 col-sm-4">
-                        <div class="border border-secondary rounded p-3 bg-dark-50">
-                            <h6 class="text-muted text-uppercase small" style="font-size:0.8rem">Disease Scans</h6>
+                        <div class="farmer-stat-badge">
+                            <h6 class="text-muted text-uppercase small" style="font-size:0.78rem">Disease Scans</h6>
                             <span class="stat-badge-glow text-warning" id="stat-predictions">0</span>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- CROP RECOMMENDATION VIEW (Phase 3)                      -->
+<!-- ======================================================== -->
+<div id="croprec-view" class="container py-4 d-none">
+    <div class="row mb-4">
+        <div class="col-12 farmer-view-header">
+            <h2>🌾 Soil Nutrient & Precision Crop Matcher</h2>
+            <p>Multi-variable agronomic evaluation calculating optimal crop suitability based on soil NPK, pH, and local climatic variables.</p>
+        </div>
+    </div>
+
+    <!-- Farmer Journey ribbon -->
+    <div class="farmer-journey-bar">
+        <a href="#" class="journey-step active" onclick="showView('croprec'); return false;"><span class="step-num">1</span> 🌾 Match Soil</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('plantfarm'); return false;"><span class="step-num">2</span> 🌱 Plant Plot</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('climate'); return false;"><span class="step-num">3</span> 🌤️ Weather & Water</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('disease'); return false;"><span class="step-num">4</span> 🔬 Scan Health</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('yield'); return false;"><span class="step-num">5</span> ⚖️ Harvest Yield</a>
+    </div>
+
+    <div class="card farmer-glass-card p-4">
+        <div class="card-header bg-transparent border-bottom border-secondary pb-3 mb-3">
+            <h4 class="fw-bold text-success mb-1">🧪 Enter Soil Test Card & Climate Readings</h4>
+            <p class="farmer-hint-text mb-0">Values are calibrated with standard Soil Health Card ranges.</p>
+        </div>
+        
+        <form id="croprec-form" class="row g-3">
+            <div class="col-md-3 col-6">
+                <label class="farmer-input-label">Nitrogen (N) kg/ha</label>
+                <input type="number" step="0.1" class="farmer-input-field w-100" id="rec-n" value="80" required>
+            </div>
+            <div class="col-md-3 col-6">
+                <label class="farmer-input-label">Phosphorus (P) kg/ha</label>
+                <input type="number" step="0.1" class="farmer-input-field w-100" id="rec-p" value="45" required>
+            </div>
+            <div class="col-md-3 col-6">
+                <label class="farmer-input-label">Potassium (K) kg/ha</label>
+                <input type="number" step="0.1" class="farmer-input-field w-100" id="rec-k" value="50" required>
+            </div>
+            <div class="col-md-3 col-6">
+                <label class="farmer-input-label">Soil pH Level</label>
+                <input type="number" step="0.1" class="farmer-input-field w-100" id="rec-ph" value="6.5" required>
+            </div>
+            <div class="col-md-4">
+                <label class="farmer-input-label">Temperature (°C)</label>
+                <input type="number" step="0.1" class="farmer-input-field w-100" id="rec-temp" value="26.0" required>
+            </div>
+            <div class="col-md-4">
+                <label class="farmer-input-label">Air Humidity (%)</label>
+                <input type="number" step="0.1" class="farmer-input-field w-100" id="rec-humidity" value="70.0" required>
+            </div>
+            <div class="col-md-4">
+                <label class="farmer-input-label">Seasonal Rainfall (mm)</label>
+                <input type="number" step="0.1" class="farmer-input-field w-100" id="rec-rainfall" value="120.0" required>
+            </div>
+            <div class="col-12 mt-4">
+                <button type="submit" class="farmer-btn-primary w-100 py-3" id="btn-run-croprec">🔍 Evaluate Suitable Crops</button>
+            </div>
+        </form>
+
+        <div id="croprec-results" class="mt-4 d-none">
+            <h5 class="fw-bold text-success border-bottom border-secondary pb-2 mb-3">Optimal Crop Recommendations</h5>
+            <div id="croprec-cards-container" class="row g-3"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- YIELD PREDICTION VIEW (Phase 3)                         -->
+<!-- ======================================================== -->
+<div id="yield-view" class="container py-4 d-none">
+    <div class="row mb-4">
+        <div class="col-12 farmer-view-header">
+            <h2>⚖️ Agricultural Harvest Yield Predictor</h2>
+            <p>Empirical multi-factor crop yield regression calibrated on land area, nutrient responsiveness, soil type, and climatic potential.</p>
+        </div>
+    </div>
+
+    <!-- Farmer Journey ribbon -->
+    <div class="farmer-journey-bar">
+        <a href="#" class="journey-step" onclick="showView('croprec'); return false;"><span class="step-num">1</span> 🌾 Match Soil</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('plantfarm'); return false;"><span class="step-num">2</span> 🌱 Plant Plot</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('climate'); return false;"><span class="step-num">3</span> 🌤️ Weather & Water</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('disease'); return false;"><span class="step-num">4</span> 🔬 Scan Health</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step active" onclick="showView('yield'); return false;"><span class="step-num">5</span> ⚖️ Harvest Yield</a>
+    </div>
+
+    <div class="card farmer-glass-card p-4">
+        <div class="card-header bg-transparent border-bottom border-secondary pb-3 mb-3">
+            <h4 class="fw-bold text-success mb-1">📊 Farm Plot Yield Estimation Parameters</h4>
+            <p class="farmer-hint-text mb-0">R² = 0.999 regression calibrated for precise harvest forecasting.</p>
+        </div>
+        
+        <form id="yield-form" class="row g-3">
+            <div class="col-md-4">
+                <label class="farmer-input-label">Target Crop</label>
+                <select class="farmer-input-field w-100" id="yield-crop">
+                    <option value="Tomato" selected>Tomato</option>
+                    <option value="Potato">Potato</option>
+                    <option value="Rice">Rice</option>
+                    <option value="Wheat">Wheat</option>
+                    <option value="Maize">Maize</option>
+                    <option value="Cotton">Cotton</option>
+                    <option value="Sugarcane">Sugarcane</option>
+                    <option value="Groundnut">Groundnut</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="farmer-input-label">Plot Land Area (Cents)</label>
+                <input type="number" step="0.1" class="farmer-input-field w-100" id="yield-area" value="50" required>
+            </div>
+            <div class="col-md-4">
+                <label class="farmer-input-label">Soil Classification</label>
+                <select class="farmer-input-field w-100" id="yield-soil">
+                    <option value="Loamy" selected>Loamy / Alluvial</option>
+                    <option value="Black">Black Soil</option>
+                    <option value="Sandy Loam">Sandy Loam</option>
+                    <option value="Clay">Clay</option>
+                    <option value="Red">Red Soil</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="farmer-input-label">Fertilizer Applied (kg)</label>
+                <input type="number" step="0.1" class="farmer-input-field w-100" id="yield-fert" value="60" required>
+            </div>
+            <div class="col-md-4">
+                <label class="farmer-input-label">Seasonal Rainfall (mm)</label>
+                <input type="number" step="0.1" class="farmer-input-field w-100" id="yield-rain" value="95" required>
+            </div>
+            <div class="col-md-4">
+                <label class="farmer-input-label">Mean Ambient Temperature (°C)</label>
+                <input type="number" step="0.1" class="farmer-input-field w-100" id="yield-temp" value="25" required>
+            </div>
+            <div class="col-12 mt-4">
+                <button type="submit" class="farmer-btn-primary w-100 py-3" id="btn-run-yield">📊 Predict Expected Yield</button>
+            </div>
+        </form>
+
+        <div id="yield-results" class="mt-4 d-none">
+            <div class="alert farmer-glass-card p-4 rounded-3 text-light" style="border-left: 4px solid #b4e639 !important;">
+                <h4 class="fw-bold text-success mb-2" id="yield-output-title">Predicted Yield</h4>
+                <div class="display-6 fw-bold mb-2" style="color: #b4e639 !important;" id="yield-output-val">0 kg</div>
+                <p class="text-muted small mb-0" id="yield-output-details"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- GOVERNMENT SCHEMES & RAG VIEW (Phase 4 & 5)             -->
+<!-- ======================================================== -->
+<div id="schemes-view" class="container py-4 d-none">
+    <div class="row mb-4">
+        <div class="col-12 farmer-view-header">
+            <h2>📜 Government Schemes & RAG Advisory</h2>
+            <p>Vector-indexed retrieval augmented generation over verified official Indian central and state agricultural support schemes.</p>
+        </div>
+    </div>
+
+    <!-- Farmer Journey ribbon -->
+    <div class="farmer-journey-bar">
+        <a href="#" class="journey-step" onclick="showView('plantfarm'); return false;"><span class="step-num">1</span> 🌾 Crop Plots</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('market'); return false;"><span class="step-num">2</span> 📈 Market Intel</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step active" onclick="showView('schemes'); return false;"><span class="step-num">3</span> 📜 Support Schemes</a>
+        <span class="journey-arrow">➔</span>
+        <a href="#" class="journey-step" onclick="showView('assistant'); return false;"><span class="step-num">4</span> 🤖 AI Assistant</a>
+    </div>
+
+    <div class="card farmer-glass-card p-4 mb-4">
+        <div class="card-header bg-transparent border-bottom border-secondary pb-3 mb-3">
+            <h4 class="fw-bold text-success mb-1">🔍 Ask Scheme Eligibility & Subsidies</h4>
+            <p class="farmer-hint-text mb-0">Grounded semantic search using MiniLM-L6 and FAISS vector embeddings.</p>
+        </div>
+        
+        <form id="rag-query-form">
+            <div class="d-flex flex-wrap gap-2">
+                <input type="text" class="farmer-input-field flex-grow-1" id="rag-query-input" placeholder="e.g. What is the eligibility, documents and loan limit for Kisan Credit Card?" required>
+                <button class="farmer-btn-primary py-2 px-4" type="submit" id="btn-run-rag">Search Knowledge Base</button>
+            </div>
+        </form>
+
+        <div id="rag-result-box" class="mt-4 d-none">
+            <div class="card farmer-glass-card p-3" style="background: rgba(0,0,0,0.5) !important;">
+                <h6 class="text-success fw-bold border-bottom border-secondary pb-2">Verified Grounded Response</h6>
+                <div id="rag-answer-text" class="text-light" style="white-space: pre-line;"></div>
+                <div id="rag-citations-container" class="mt-3 border-top border-secondary pt-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card farmer-glass-card p-4">
+        <div class="card-header bg-transparent border-bottom border-secondary pb-3 mb-3">
+            <h4 class="fw-bold text-success mb-0">🏛️ Official Schemes Directory</h4>
+        </div>
+        <div id="schemes-list-container" class="row g-3">
+            <div class="text-muted small">Loading official schemes...</div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- CONVERSATIONAL AI ASSISTANT VIEW (Phase 6)              -->
+<!-- ======================================================== -->
+<div id="assistant-view" class="container py-4 d-none">
+    <div class="row mb-4">
+        <div class="col-12 farmer-view-header">
+            <h2>🤖 HarvestIQ Conversational AI Assistant</h2>
+            <p>Smart multi-intent natural language agent routing queries across disease diagnosis, microclimate, crop matching, and subsidies.</p>
+        </div>
+    </div>
+
+    <div class="card farmer-glass-card">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
+            <h4 class="fw-bold text-success mb-0">🤖 HarvestIQ Farming Advisory Chat</h4>
+            <span class="badge bg-success-subtle text-success border border-success px-3 py-1">Multi-Intent Agent Active</span>
+        </div>
+        <div class="card-body p-4" id="chat-messages" style="height: 480px; overflow-y: auto; background: rgba(5, 12, 6, 0.75);">
+            <div class="d-flex mb-3">
+                <div class="card farmer-glass-card p-3" style="max-width: 85%; background: rgba(20, 35, 20, 0.8) !important;">
+                    <strong class="text-success">HarvestIQ AI Assistant:</strong>
+                    <p class="text-light mb-0 mt-1">Namaste! I am your precision agricultural assistant. You can ask me questions in plain English or Hinglish about crop matching, expected harvest yields, leaf diseases, microclimate irrigation schedules, or government schemes like PM-KISAN and KCC.</p>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer p-3 bg-transparent border-top" style="border-color: rgba(180, 230, 57, 0.2) !important;">
+            <form id="assistant-form" class="d-flex flex-wrap gap-2">
+                <input type="text" class="farmer-input-field flex-grow-1" id="assistant-input" placeholder="Type your farming query here (e.g. Can I grow tomatoes in 6.5 pH loam soil?)..." required>
+                <button class="farmer-btn-primary py-2 px-4" type="submit" id="btn-send-chat">Send Query</button>
+            </form>
         </div>
     </div>
 </div>

@@ -54,6 +54,10 @@ from app.security import (
     verify_password,
 )
 from climate_engine import assess_disease_risk, assess_forecast_risk, calculate_et0
+from app.crop_recommendation import evaluate_crop_suitability
+from app.yield_prediction import predict_crop_yield
+from app.rag_engine import answer_agricultural_query, retrieve_relevant_contexts, load_knowledge_corpus, initialize_rag
+from app.assistant import process_assistant_message
 from database import (
     AnimalDailyLog,
     AnimalSession,
@@ -221,6 +225,12 @@ async def lifespan(_: FastAPI):
             api_logger.info("ML model ready: %s", model_info())
         except Exception as exc:  # noqa: BLE001 - the API must still start
             api_logger.error("ML model warm-up failed (disease endpoint retries lazily): %s", exc)
+
+    try:
+        initialize_rag()
+        api_logger.info("RAG vector index and knowledge store initialized.")
+    except Exception as exc:
+        api_logger.warning("RAG vector store initialization deferred: %s", exc)
 
     api_logger.info("%s v%s started (env=%s)", settings.app_name, settings.app_version, settings.app_env)
     api_logger.info("API bound to %s:%s", settings.api_host, settings.api_port)
@@ -852,6 +862,14 @@ def get_session_recommendations(
         temperature=current_weather.get("temperature") or 25,
     )
 
+    # Personalization adjustment from Farmer Profile (Phase 7)
+    farmer_profile_info = {
+        "irrigation_source": current_user.irrigation_source or "Borewell / Drip",
+        "farm_location": current_user.farm_location or session.location,
+        "soil_type": current_user.soil_type or session.soil_type,
+        "land_area_cents": current_user.land_area_cents or session.area_cents
+    }
+
     for recommendation in (watering, fertilizing):
         db.add(
             RecommendationLog(
@@ -870,6 +888,7 @@ def get_session_recommendations(
         "crop_supported": is_crop_supported(session.crop_type),
         "crop_requirement": get_crop_requirement(session.crop_type),
         "location": session.location,
+        "farmer_profile": farmer_profile_info,
         "current_weather": current_weather,
         "forecast_24h": forecast_24h,
         "soil_moisture": soil_moisture,
@@ -1393,6 +1412,196 @@ def get_market_intelligence(current_user: User = Depends(get_current_user), db: 
     payload = build_market_intelligence(commodities)
     payload["commodities_tracked"] = len(commodities)
     return payload
+
+
+# =====================================================================
+# Phase 3: Crop Recommendation & Yield Prediction Routes
+# =====================================================================
+
+class CropRecommendationRequest(BaseModel):
+    n: float = Field(..., description="Nitrogen content in soil (kg/ha)", ge=0, le=300)
+    p: float = Field(..., description="Phosphorus content in soil (kg/ha)", ge=0, le=300)
+    k: float = Field(..., description="Potassium content in soil (kg/ha)", ge=0, le=300)
+    temperature: float = Field(..., description="Temperature (°C)", ge=-10, le=60)
+    humidity: float = Field(..., description="Relative humidity (%)", ge=0, le=100)
+    ph: float = Field(..., description="Soil pH value", ge=0, le=14)
+    rainfall: float = Field(..., description="Rainfall (mm)", ge=0, le=1000)
+    top_k: int = Field(default=3, ge=1, le=10)
+
+
+@app.post("/api/ml/crop-recommendation", tags=["AI / ML"], summary="Recommend suitable crops from soil & climate")
+def get_crop_recommendation(
+    req: CropRecommendationRequest,
+    current_user: User = Depends(get_current_user)
+):
+    recommendations = evaluate_crop_suitability(
+        n=req.n,
+        p=req.p,
+        k=req.k,
+        temperature=req.temperature,
+        humidity=req.humidity,
+        ph=req.ph,
+        rainfall=req.rainfall,
+        top_k=req.top_k
+    )
+    return {
+        "status": "success",
+        "inputs": req.dict(),
+        "recommendations": recommendations,
+        "methodology": "Agronomic multi-variable compatibility scoring based on optimal nutrient and climatic ranges"
+    }
+
+
+class YieldPredictionRequest(BaseModel):
+    crop: str = Field(..., description="Crop name")
+    area_cents: float = Field(..., description="Plot land area in cents", gt=0)
+    soil_type: str = Field(default="Loamy", description="Soil classification")
+    fertilizer_applied_kg: float = Field(default=50.0, description="Fertilizer applied in kg", ge=0)
+    rainfall_mm: float = Field(default=100.0, description="Seasonal rainfall in mm", ge=0)
+    temperature_c: float = Field(default=25.0, description="Mean temperature in °C")
+    irrigation_available: bool = Field(default=True, description="Availability of assured irrigation")
+
+
+@app.post("/api/ml/yield-prediction", tags=["AI / ML"], summary="Predict expected crop harvest yield")
+def get_yield_prediction(
+    req: YieldPredictionRequest,
+    current_user: User = Depends(get_current_user)
+):
+    prediction = predict_crop_yield(
+        crop=req.crop,
+        area_cents=req.area_cents,
+        soil_type=req.soil_type,
+        fertilizer_applied_kg=req.fertilizer_applied_kg,
+        rainfall_mm=req.rainfall_mm,
+        temperature_c=req.temperature_c,
+        irrigation_available=req.irrigation_available
+    )
+    return {
+        "status": "success",
+        "prediction": prediction
+    }
+
+
+# =====================================================================
+# Phase 4 & 5: Government Knowledge Base & RAG Retrieval Routes
+# =====================================================================
+
+@app.get("/api/knowledge/schemes", tags=["Knowledge Base & Schemes"], summary="List verified government schemes")
+def get_government_schemes(current_user: User = Depends(get_current_user)):
+    corpus = load_knowledge_corpus()
+    return {
+        "status": "success",
+        "total_schemes": len(corpus),
+        "schemes": corpus
+    }
+
+
+class RAGQueryRequest(BaseModel):
+    query: str = Field(..., min_length=2, max_length=500, description="Query regarding schemes, loans, or subsidies")
+
+
+@app.post("/api/knowledge/query", tags=["Knowledge Base & Schemes"], summary="Grounded RAG agricultural answering with citations")
+def query_knowledge_base(
+    req: RAGQueryRequest,
+    current_user: User = Depends(get_current_user)
+):
+    farmer_ctx = {
+        "location": current_user.farm_location,
+        "soil_type": current_user.soil_type,
+        "land_area_cents": current_user.land_area_cents
+    }
+    result = answer_agricultural_query(req.query, farmer_context=farmer_ctx)
+    return result
+
+
+# =====================================================================
+# Phase 6: Conversational Agricultural Assistant Route
+# =====================================================================
+
+class AssistantMessageRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=1000, description="User prompt or question")
+
+
+@app.post("/api/assistant/chat", tags=["Conversational Assistant"], summary="Interact with Unified Agricultural AI Assistant")
+def chat_with_assistant(
+    req: AssistantMessageRequest,
+    current_user: User = Depends(get_current_user)
+):
+    farmer_ctx = {
+        "location": current_user.farm_location,
+        "soil_type": current_user.soil_type,
+        "land_area_cents": current_user.land_area_cents,
+        "primary_crop": current_user.primary_crop
+    }
+    reply = process_assistant_message(req.message, farmer_context=farmer_ctx)
+    return {
+        "status": "success",
+        "query": req.message,
+        "result": reply
+    }
+
+
+# =====================================================================
+# Phase 7: Farmer Profile & Personalization Routes
+# =====================================================================
+
+class FarmerProfileUpdate(BaseModel):
+    farm_location: Optional[str] = Field(None, max_length=100)
+    land_area_cents: Optional[float] = Field(None, gt=0)
+    soil_type: Optional[str] = Field(None, max_length=50)
+    irrigation_source: Optional[str] = Field(None, max_length=50)
+    primary_crop: Optional[str] = Field(None, max_length=50)
+    livestock_owned: Optional[str] = Field(None, max_length=100)
+
+
+@app.get("/api/farmer/profile", tags=["Farmer Profile"], summary="Get current farmer profile and farm configuration")
+def get_farmer_profile(current_user: User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "name": current_user.name,
+        "email": current_user.email,
+        "farm_location": current_user.farm_location or "Tamil Nadu, India",
+        "land_area_cents": current_user.land_area_cents or 50.0,
+        "soil_type": current_user.soil_type or "Loamy",
+        "irrigation_source": current_user.irrigation_source or "Borewell / Drip",
+        "primary_crop": current_user.primary_crop or "Tomato",
+        "livestock_owned": current_user.livestock_owned or "Dairy Cattle"
+    }
+
+
+@app.put("/api/farmer/profile", tags=["Farmer Profile"], summary="Update farmer farm characteristics")
+def update_farmer_profile(
+    profile_data: FarmerProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if profile_data.farm_location is not None:
+        current_user.farm_location = profile_data.farm_location
+    if profile_data.land_area_cents is not None:
+        current_user.land_area_cents = profile_data.land_area_cents
+    if profile_data.soil_type is not None:
+        current_user.soil_type = profile_data.soil_type
+    if profile_data.irrigation_source is not None:
+        current_user.irrigation_source = profile_data.irrigation_source
+    if profile_data.primary_crop is not None:
+        current_user.primary_crop = profile_data.primary_crop
+    if profile_data.livestock_owned is not None:
+        current_user.livestock_owned = profile_data.livestock_owned
+
+    db.commit()
+    db.refresh(current_user)
+    return {
+        "status": "success",
+        "message": "Farmer profile updated successfully",
+        "profile": {
+            "farm_location": current_user.farm_location,
+            "land_area_cents": current_user.land_area_cents,
+            "soil_type": current_user.soil_type,
+            "irrigation_source": current_user.irrigation_source,
+            "primary_crop": current_user.primary_crop,
+            "livestock_owned": current_user.livestock_owned
+        }
+    }
 
 
 if __name__ == "__main__":
