@@ -111,6 +111,9 @@ class Settings:
         self.ml_top_k = _int("ML_TOP_K", 5)
         self.ml_confidence_floor = _float("ML_CONFIDENCE_FLOOR", 40.0)    # % below this -> "uncertain"
         self.ml_warmup_on_startup = _bool("ML_WARMUP_ON_STARTUP", True)
+        # Ensemble: registry ids are declared in ml_service.MODEL_REGISTRY.
+        self.ml_default_models = _str("ML_DEFAULT_MODELS", "mobilenetv2")  # used when the request selects none
+        self.ml_parallel = _bool("ML_PARALLEL", True)                      # concurrent inference on CPU
 
         # ---- uploads --------------------------------------------------
         self.max_upload_bytes = _int("MAX_UPLOAD_BYTES", 8 * 1024 * 1024)  # 8 MB
@@ -244,6 +247,8 @@ class Settings:
             "ml_device": self.ml_device,
             "ml_top_k": self.ml_top_k,
             "ml_confidence_floor": self.ml_confidence_floor,
+            "ml_default_models": self.ml_default_models,
+            "ml_parallel": self.ml_parallel,
             "llm_provider": self.llm_provider,
             "legacy_header_auth": self.allow_legacy_user_header,
             "cors_origins": self.cors_origins,

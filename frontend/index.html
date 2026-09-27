@@ -463,6 +463,48 @@
     </div>
 </nav>
 
+<!-- Suppress Google Translate telemetry POST (/element/log) that returns 401 -->
+<script type="text/javascript">
+(function () {
+    function isTranslateLogUrl(url) {
+        try {
+            var u = new URL(url, location.href);
+            return u.hostname === 'translate.googleapis.com' && u.pathname === '/element/log';
+        } catch (e) { return false; }
+    }
+
+    var nativeSendBeacon = navigator.sendBeacon && navigator.sendBeacon.bind(navigator);
+    if (nativeSendBeacon) {
+        navigator.sendBeacon = function (url, data) {
+            if (isTranslateLogUrl(url)) return true;
+            return nativeSendBeacon(url, data);
+        };
+    }
+
+    var nativeFetch = window.fetch && window.fetch.bind(window);
+    if (nativeFetch) {
+        window.fetch = function (input, init) {
+            var url = typeof input === 'string' ? input : (input && input.url) || '';
+            if (isTranslateLogUrl(url)) {
+                return Promise.resolve(new Response('', { status: 204 }));
+            }
+            return nativeFetch(input, init);
+        };
+    }
+
+    var nativeOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url) {
+        this.__skipTranslateLog = isTranslateLogUrl(url);
+        return nativeOpen.apply(this, arguments);
+    };
+    var nativeSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function () {
+        if (this.__skipTranslateLog) return;
+        return nativeSend.apply(this, arguments);
+    };
+})();
+</script>
+
 <!-- Hidden Google Translate Element -->
 <div id="google_translate_element"></div>
 <script type="text/javascript">
@@ -899,7 +941,7 @@ function googleTranslateElementInit() {
     <div class="row mb-4">
         <div class="col-12 farmer-view-header">
             <h2>🔬 Crop Pathology & Leaf Diagnostics</h2>
-            <p>Upload a photograph of any affected crop leaf. MobileNetV2 analyzes visual symptoms across 38 classes and provides targeted agronomic remedies.</p>
+            <p>Upload a photograph of any affected crop leaf. The AI ensemble (MobileNetV2, ResNet-50, Swin-Tiny) analyzes visual symptoms across 38 classes — pick one model or let all three vote — and provides targeted agronomic remedies.</p>
         </div>
     </div>
     <div class="row justify-content-center">
@@ -907,7 +949,7 @@ function googleTranslateElementInit() {
             <div class="card farmer-glass-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h3 class="h5 mb-0 fw-bold text-success">🌿 Leaf Disease Scanner</h3>
-                    <span class="badge bg-success-subtle text-success border border-success px-3 py-1">CUDA Accelerated</span>
+                    <span class="badge bg-success-subtle text-success border border-success px-3 py-1">Ensemble AI</span>
                 </div>
                 <div class="card-body p-4">
                     <div id="alert-container"></div>
@@ -919,9 +961,25 @@ function googleTranslateElementInit() {
                                 <div style="font-size: 2.8rem; margin-bottom: 0.5rem;">📸</div>
                                 <h5 class="fw-bold text-light mb-1">Click to select or drag & drop leaf photo</h5>
                                 <p class="farmer-hint-text mb-0">Supported formats: JPG, PNG, WEBP (Maximum 8 MB)</p>
-                                <input type="file" id="image-input" accept="image/*" class="d-none">
-                                <img id="image-preview" class="img-fluid mt-3 rounded-3 shadow d-none" style="max-height: 280px; border: 2px solid #b4e639;">
+                                <input type="file" id="image-input" accept="image/jpeg,image/png,image/webp" class="d-none">
+                                <img id="image-preview" class="img-fluid mt-3 rounded-3 shadow d-none" style="max-height: 280px; border: 2px solid #b4e639;" alt="Selected leaf preview">
                             </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="farmer-input-label">AI Models</label>
+                            <div id="model-toggles" class="d-flex flex-wrap gap-2">
+                                <label class="model-toggle-badge badge border px-3 py-2" style="cursor: pointer; border-color: rgba(180, 230, 57, 0.4) !important; background: rgba(0,0,0,0.35); color: #e9f5d4;">
+                                    <input type="checkbox" class="form-check-input me-1 model-checkbox" value="mobilenetv2" checked> MobileNetV2
+                                </label>
+                                <label class="model-toggle-badge badge border px-3 py-2" style="cursor: pointer; border-color: rgba(180, 230, 57, 0.4) !important; background: rgba(0,0,0,0.35); color: #e9f5d4;">
+                                    <input type="checkbox" class="form-check-input me-1 model-checkbox" value="resnet50" checked> ResNet-50
+                                </label>
+                                <label class="model-toggle-badge badge border px-3 py-2" style="cursor: pointer; border-color: rgba(180, 230, 57, 0.4) !important; background: rgba(0,0,0,0.35); color: #e9f5d4;">
+                                    <input type="checkbox" class="form-check-input me-1 model-checkbox" value="swin" checked> Swin-Tiny
+                                </label>
+                            </div>
+                            <p id="model-mode-hint" class="farmer-hint-text mt-2 mb-0">3 models enabled → hard voting ensemble</p>
                         </div>
 
                         <div class="d-flex justify-content-end">
@@ -936,7 +994,7 @@ function googleTranslateElementInit() {
             <div id="result-section" class="card farmer-glass-card mt-4 d-none">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h3 class="h5 mb-0 fw-bold text-success">📋 Diagnostic Findings & Prescription</h3>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="reset-btn">🔄 Scan Another Leaf</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm predict-reset-btn" id="reset-scan-btn">🔄 Scan Another Leaf</button>
                 </div>
                 <div class="card-body p-4">
                     <div class="text-center mb-4">
@@ -960,7 +1018,8 @@ function googleTranslateElementInit() {
 
                     <!-- Model provenance and the low-confidence notice -->
                     <div id="res-notice" class="alert alert-warning d-none" role="alert"></div>
-                    <p id="res-model-meta" class="text-muted small"></p>
+                    <p id="res-model-meta" class="text-muted small mb-1"></p>
+                    <div id="res-votes" class="small text-muted mb-2 d-none" style="background: rgba(0,0,0,0.35); border: 1px solid rgba(180, 230, 57, 0.2); border-radius: 0.5rem; padding: 0.5rem 0.75rem;"></div>
 
                     <h4 class="h5 fw-bold text-light mb-3 border-bottom border-secondary pb-2">Top Probable Classifications</h4>
                     <div class="table-responsive mb-4">
@@ -992,7 +1051,7 @@ function googleTranslateElementInit() {
                     </div>
                     
                     <div class="mt-4 text-center">
-                        <button id="reset-btn" class="btn btn-outline-success">Upload New Image</button>
+                        <button id="reset-upload-btn" class="btn btn-outline-success predict-reset-btn">Upload New Image</button>
                     </div>
                 </div>
             </div>

@@ -70,7 +70,7 @@ from database import (
     init_db,
     to_date_key,
 )
-from ml_service import load_or_download_model, model_info, predict_image
+from ml_service import load_or_download_model, model_info, parse_model_selection, predict_image
 from notification_service import (
     format_alert_message,
     is_configured as email_configured,
@@ -529,6 +529,7 @@ async def predict_disease_endpoint(
     crop_type: str = Form("Unknown"),
     symptoms: str = Form(""),
     location: str = Form("Tamil Nadu, India"),
+    models: str = Form(""),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -537,14 +538,22 @@ async def predict_disease_endpoint(
 
     Low-confidence results are flagged (``status: "uncertain"``) instead of being
     reported as a disease - Version 1 returned a confident label for any image.
+
+    ``models`` selects the ensemble: a comma-separated subset of the registry
+    ids (``mobilenetv2``, ``resnet50``, ``swin``). One model runs standalone;
+    two or more hard-vote on the winning class. Empty uses ML_DEFAULT_MODELS.
     """
     _validate_upload(image)
+    try:
+        model_ids = parse_model_selection(models)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     image_bytes = await _read_upload_limited(image)
 
     try:
         # Inference is CPU/GPU bound: run it in the worker thread pool so the
         # event loop keeps serving other requests during a prediction.
-        result = await run_in_threadpool(predict_image, image_bytes)
+        result = await run_in_threadpool(predict_image, image_bytes, None, model_ids)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:  # noqa: BLE001 - model/runtime failure
@@ -576,9 +585,10 @@ async def predict_disease_endpoint(
     db.refresh(record)
 
     api_logger.info(
-        "Prediction id=%s user=%s label=%s score=%.2f status=%s in %sms (%s)",
+        "Prediction id=%s user=%s label=%s score=%.2f status=%s mode=%s models=%s in %sms (%s)",
         record.id, current_user.id, disease_name, confidence_score,
-        result["status"], result["inference_ms"], result["device"],
+        result["status"], result["mode"], ",".join(m["id"] for m in result["models"]),
+        result["inference_ms"], result["device"],
     )
 
     return {
@@ -597,6 +607,10 @@ async def predict_disease_endpoint(
             "annotation_type": result["annotation_type"],
             "inference_ms": result["inference_ms"],
             "device": result["device"],
+            "mode": result["mode"],
+            "models": result["models"],
+            "votes": result["votes"],
+            "agreement": result["agreement"],
             "created_at": record.created_at.isoformat() if record.created_at else None,
             "crop_type": canonical_crop,
         },

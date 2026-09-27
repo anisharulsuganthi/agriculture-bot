@@ -5,10 +5,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitBtn = document.getElementById('submit-btn');
     const predictionForm = document.getElementById('prediction-form');
     const resultSection = document.getElementById('result-section');
-    const resetBtn = document.getElementById('reset-btn');
+    const resetBtns = document.querySelectorAll('.predict-reset-btn');
     const alertContainer = document.getElementById('alert-container');
-    
+    const modelBoxes = Array.from(document.querySelectorAll('.model-checkbox'));
+    const modelHint = document.getElementById('model-mode-hint');
+    const submitBtnHtml = submitBtn.innerHTML;
+
     let selectedFile = null;
+
+    function selectedModels() {
+        return modelBoxes.filter(box => box.checked).map(box => box.value);
+    }
+
+    function updateModelHint() {
+        if (!modelHint) return;
+        const count = selectedModels().length;
+        modelHint.textContent = count > 1
+            ? `${count} models enabled → hard voting ensemble`
+            : '1 model enabled → single model prediction';
+    }
+
+    modelBoxes.forEach(box => {
+        box.addEventListener('change', (e) => {
+            if (selectedModels().length === 0) {
+                e.target.checked = true;
+            }
+            updateModelHint();
+        });
+    });
 
     dropZone.addEventListener('click', () => imageInput.click());
     
@@ -38,6 +62,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleFileSelection(file) {
         if (!file.type.startsWith('image/')) {
             showAlert('Please select a valid image file.', 'danger');
+            return;
+        }
+        if (file.size > 8 * 1024 * 1024) {
+            showAlert('Image is too large. Maximum size is 8 MB.', 'danger');
             return;
         }
         selectedFile = file;
@@ -79,6 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const formData = new FormData();
         formData.append('image', selectedFile);
+        formData.append('models', selectedModels().join(','));
 
         try {
             const response = await fetch(apiUrl('/api/predict/disease'), {
@@ -86,7 +115,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: formData
             });
 
-            const data = await response.json();
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                throw new Error(`Prediction failed (HTTP ${response.status})`);
+            }
 
             if (!response.ok) {
                 throw new Error(data.detail || 'Prediction failed');
@@ -97,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showAlert(error.message, 'danger');
         } finally {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = 'Predict Disease';
+            submitBtn.innerHTML = submitBtnHtml;
         }
     });
 
@@ -170,9 +204,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const metaHost = document.getElementById('res-model-meta');
         if (metaHost) {
+            const modelNames = (prediction.models || []).map(m => m.label).join(' + ') || 'Model';
+            const modeText = prediction.mode === 'voting'
+                ? `hard voting · agreement ${prediction.agreement}%`
+                : 'single model';
             metaHost.textContent =
-                `MobileNetV2 classifier · ${prediction.detections ? prediction.detections.length : 0} ranked classes · ` +
+                `${modelNames} · ${modeText} · ${prediction.detections ? prediction.detections.length : 0} ranked classes · ` +
                 `${prediction.device} · ${prediction.inference_ms} ms · analysed ${prediction.created_at || ''}`;
+        }
+
+        const votesHost = document.getElementById('res-votes');
+        if (votesHost) {
+            if (prediction.votes && prediction.votes.length > 1) {
+                votesHost.classList.remove('d-none');
+                votesHost.innerHTML = '';
+                const title = document.createElement('div');
+                title.className = 'fw-bold text-success mb-1';
+                title.textContent = '🗳️ Model votes';
+                votesHost.appendChild(title);
+                prediction.votes.forEach(vote => {
+                    const line = document.createElement('div');
+                    if (vote.ok) {
+                        line.textContent = `${vote.model_label}: ${vote.label} (${vote.score}%) · ${vote.ms} ms`;
+                    } else {
+                        line.textContent = `${vote.model_label}: abstained (${vote.error || 'failed'})`;
+                    }
+                    votesHost.appendChild(line);
+                });
+            } else {
+                votesHost.classList.add('d-none');
+            }
         }
 
         const tbody = document.getElementById('cure-table-body');
@@ -193,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    resetBtn.addEventListener('click', () => {
+    function resetPrediction() {
         selectedFile = null;
         imagePreview.src = '';
         imagePreview.classList.add('d-none');
@@ -206,10 +267,16 @@ document.addEventListener('DOMContentLoaded', () => {
             annotatedImg.src = '';
             annotatedImg.classList.add('d-none');
         }
+
+        const votesHost = document.getElementById('res-votes');
+        if (votesHost) votesHost.classList.add('d-none');
+        alertContainer.innerHTML = '';
         
         resultSection.classList.add('d-none');
         predictionForm.closest('.card').classList.remove('d-none');
-    });
+    }
+
+    resetBtns.forEach(btn => btn.addEventListener('click', resetPrediction));
 });
 
 window.showAuthView = function(tab) {
