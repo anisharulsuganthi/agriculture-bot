@@ -250,3 +250,5 @@ knowledge with citations; a conversational assistant that routes questions to th
 existing modules; a farmer profile that personalises the advisory; Grad-CAM style
 explanations; a proper held-out evaluation of the classifier; multi-process rate
 limiting and token revocation.
+#   a g r i c u l t u r e - b o t  
+ 
