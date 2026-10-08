@@ -40,5 +40,3 @@ echo   - Web App:      http://localhost:5500
 echo   - Backend API:  http://localhost:8000/docs
 echo.
 pause
-
-

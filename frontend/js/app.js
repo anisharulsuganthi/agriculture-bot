@@ -152,19 +152,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const detBody = document.getElementById('detections-table-body');
         detBody.innerHTML = '';
         if (prediction.detections && prediction.detections.length > 0) {
-            prediction.detections.forEach(det => {
+            prediction.detections.forEach((det, idx) => {
                 const tr = document.createElement('tr');
-                const labelCell = document.createElement('td');
-                labelCell.className = 'fw-bold';
-                labelCell.textContent = det.label;
-                const scoreCell = document.createElement('td');
-                scoreCell.textContent = `${det.score}%`;
-                tr.appendChild(labelCell);
-                tr.appendChild(scoreCell);
+                const isTop = idx === 0;
+                tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                tr.innerHTML = `
+                    <td class="py-2" style="width: 75%;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="${isTop ? 'fw-bold text-success' : 'text-light small'}">${isTop ? '⭐ ' : ''}${det.label}</span>
+                            <span class="badge ${isTop ? 'bg-success' : 'bg-dark border border-secondary text-light'} px-2">${det.score}%</span>
+                        </div>
+                        <div class="progress" style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px;">
+                            <div class="progress-bar ${isTop ? 'bg-success' : 'bg-secondary'}" role="progressbar" style="width: ${Math.min(100, Math.max(1, det.score))}%;"></div>
+                        </div>
+                    </td>
+                    <td class="py-2 text-end align-middle fw-bold ${isTop ? 'text-success' : 'text-muted small'}" style="width: 25%; font-family: monospace;">
+                        ${det.score}%
+                    </td>
+                `;
                 detBody.appendChild(tr);
             });
         } else {
-            detBody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">No diseases detected.</td></tr>';
+            detBody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">No disease detections returned.</td></tr>';
         }
 
         document.getElementById('res-disease-name').textContent = prediction.disease_name;
@@ -177,18 +186,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const healthyBadge = document.getElementById('res-healthy');
         if (uncertain) {
             healthyBadge.className = 'badge bg-warning text-dark';
-            healthyBadge.textContent = '⚠️ Uncertain - expert review needed';
+            healthyBadge.textContent = '⚠️ Uncertain - Review Needed';
         } else if (prediction.is_healthy) {
             healthyBadge.className = 'badge bg-success';
-            healthyBadge.textContent = '✅ Healthy';
+            healthyBadge.textContent = '✅ Healthy Crop';
         } else {
             healthyBadge.className = 'badge bg-danger';
-            healthyBadge.textContent = '❌ Infected';
+            healthyBadge.textContent = '❌ Infected Plant';
         }
 
         const severityBadge = document.getElementById('res-severity');
         severityBadge.textContent = uncertain
-            ? `Severity: not assessed (below the ${prediction.confidence_floor}% confidence floor)`
+            ? `Severity: Unassessed`
             : `Severity: ${prediction.severity}`;
         if (uncertain) severityBadge.className = 'badge bg-secondary';
         else if (prediction.severity === 'Severe' || prediction.severity === 'High') severityBadge.className = 'badge bg-danger';
@@ -204,33 +213,81 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const metaHost = document.getElementById('res-model-meta');
         if (metaHost) {
-            const modelNames = (prediction.models || []).map(m => m.label).join(' + ') || 'Model';
-            const modeText = prediction.mode === 'voting'
-                ? `hard voting · agreement ${prediction.agreement}%`
-                : 'single model';
-            metaHost.textContent =
-                `${modelNames} · ${modeText} · ${prediction.detections ? prediction.detections.length : 0} ranked classes · ` +
-                `${prediction.device} · ${prediction.inference_ms} ms · analysed ${prediction.created_at || ''}`;
+            const isVoting = prediction.mode === 'voting';
+            const agreementPill = isVoting 
+                ? `<span class="badge rounded-pill bg-success-subtle text-success border border-success px-3 py-1 small">🗳️ Hard Voting (${prediction.agreement}% Consensus)</span>`
+                : `<span class="badge rounded-pill bg-info-subtle text-info border border-info px-3 py-1 small">🔬 Single Model Evaluation</span>`;
+            const devicePill = `<span class="badge rounded-pill bg-dark border border-secondary text-light px-3 py-1 small">⚡ ${prediction.device ? prediction.device.toUpperCase() : 'CPU'}</span>`;
+            const timePill = `<span class="badge rounded-pill bg-dark border border-secondary text-light px-3 py-1 small">⏱️ ${prediction.inference_ms || 0} ms</span>`;
+            const classesPill = `<span class="badge rounded-pill bg-dark border border-secondary text-light px-3 py-1 small">🏷️ ${prediction.detections ? prediction.detections.length : 0} Candidates Evaluated</span>`;
+            
+            metaHost.innerHTML = `<div class="d-flex flex-wrap gap-2 align-items-center">${agreementPill}${devicePill}${timePill}${classesPill}</div>`;
         }
 
         const votesHost = document.getElementById('res-votes');
         if (votesHost) {
-            if (prediction.votes && prediction.votes.length > 1) {
+            if (prediction.votes && prediction.votes.length > 0) {
                 votesHost.classList.remove('d-none');
                 votesHost.innerHTML = '';
-                const title = document.createElement('div');
-                title.className = 'fw-bold text-success mb-1';
-                title.textContent = '🗳️ Model votes';
-                votesHost.appendChild(title);
+                
+                const header = document.createElement('div');
+                header.className = 'd-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25';
+                header.innerHTML = `
+                    <div class="fw-bold fs-6 text-light d-flex align-items-center gap-2">
+                        <span>🗳️ AI Ensemble Model Votes</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle small">${prediction.mode === 'voting' ? 'Majority Consensus' : 'Single Evaluation'}</span>
+                    </div>
+                    <span class="text-muted small">${prediction.votes.filter(v => v.ok).length} of ${prediction.votes.length} models active</span>
+                `;
+                votesHost.appendChild(header);
+
+                const grid = document.createElement('div');
+                grid.className = 'row g-3';
+
                 prediction.votes.forEach(vote => {
-                    const line = document.createElement('div');
+                    const col = document.createElement('div');
+                    col.className = 'col-md-6 col-lg-4';
+                    
+                    const isWinner = vote.ok && (vote.label === prediction.disease_name);
+                    const cardBg = isWinner 
+                        ? 'background: linear-gradient(145deg, rgba(180, 230, 57, 0.14), rgba(0, 0, 0, 0.6)); border: 1px solid rgba(180, 230, 57, 0.45);'
+                        : 'background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);';
+
                     if (vote.ok) {
-                        line.textContent = `${vote.model_label}: ${vote.label} (${vote.score}%) · ${vote.ms} ms`;
+                        col.innerHTML = `
+                            <div class="p-3 rounded-3 h-100 shadow-sm position-relative" style="${cardBg}">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="fw-bold small text-light text-truncate pe-1" title="${vote.model_label}">${vote.model_label}</span>
+                                    ${isWinner ? '<span class="badge bg-success px-2 py-1"><i class="bi bi-trophy"></i> Winner</span>' : '<span class="badge bg-secondary px-2 py-1">Voted</span>'}
+                                </div>
+                                <div class="fs-6 fw-bold text-success mb-2 text-truncate" title="${vote.label}">${vote.label}</div>
+                                <div class="d-flex justify-content-between small text-muted mb-1">
+                                    <span>Confidence</span>
+                                    <span class="fw-bold text-light">${vote.score}%</span>
+                                </div>
+                                <div class="progress mb-2" style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px;">
+                                    <div class="progress-bar ${isWinner ? 'bg-success' : 'bg-info'}" role="progressbar" style="width: ${Math.min(100, vote.score)}%;"></div>
+                                </div>
+                                <div class="text-end small text-muted opacity-75">⏱️ ${vote.ms} ms</div>
+                            </div>
+                        `;
                     } else {
-                        line.textContent = `${vote.model_label}: abstained (${vote.error || 'failed'})`;
+                        let errText = (vote.error || 'Temporarily unavailable').trim();
+                        if (errText.length > 45) errText = 'Model format incompatible';
+                        col.innerHTML = `
+                            <div class="p-3 rounded-3 h-100 shadow-sm" style="background: rgba(20, 20, 20, 0.4); border: 1px dashed rgba(255, 255, 255, 0.15);">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="fw-bold small text-muted text-truncate" title="${vote.model_label}">${vote.model_label}</span>
+                                    <span class="badge bg-secondary-subtle text-secondary px-2 py-1">Abstained</span>
+                                </div>
+                                <div class="small text-warning mt-2 mb-1">⚠️ ${errText}</div>
+                                <div class="small text-muted opacity-75">Excluded from ensemble vote</div>
+                            </div>
+                        `;
                     }
-                    votesHost.appendChild(line);
+                    grid.appendChild(col);
                 });
+                votesHost.appendChild(grid);
             } else {
                 votesHost.classList.add('d-none');
             }

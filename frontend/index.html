@@ -970,13 +970,16 @@ function googleTranslateElementInit() {
                             <label class="farmer-input-label">AI Models</label>
                             <div id="model-toggles" class="d-flex flex-wrap gap-2">
                                 <label class="model-toggle-badge badge border px-3 py-2" style="cursor: pointer; border-color: rgba(180, 230, 57, 0.4) !important; background: rgba(0,0,0,0.35); color: #e9f5d4;">
-                                    <input type="checkbox" class="form-check-input me-1 model-checkbox" value="mobilenetv2" checked> MobileNetV2
+                                    <input type="checkbox" class="form-check-input me-1 model-checkbox" value="mobilenetv2_finetuned" checked> MobileNetV2 (Fine-Tuned 332-Class)
                                 </label>
                                 <label class="model-toggle-badge badge border px-3 py-2" style="cursor: pointer; border-color: rgba(180, 230, 57, 0.4) !important; background: rgba(0,0,0,0.35); color: #e9f5d4;">
                                     <input type="checkbox" class="form-check-input me-1 model-checkbox" value="resnet50" checked> ResNet-50
                                 </label>
                                 <label class="model-toggle-badge badge border px-3 py-2" style="cursor: pointer; border-color: rgba(180, 230, 57, 0.4) !important; background: rgba(0,0,0,0.35); color: #e9f5d4;">
                                     <input type="checkbox" class="form-check-input me-1 model-checkbox" value="swin" checked> Swin-Tiny
+                                </label>
+                                <label class="model-toggle-badge badge border px-3 py-2" style="cursor: pointer; border-color: rgba(180, 230, 57, 0.4) !important; background: rgba(0,0,0,0.35); color: #e9f5d4;">
+                                    <input type="checkbox" class="form-check-input me-1 model-checkbox" value="mobilenetv2"> MobileNetV2 (38-Class Base)
                                 </label>
                             </div>
                             <p id="model-mode-hint" class="farmer-hint-text mt-2 mb-0">3 models enabled → hard voting ensemble</p>
@@ -1001,38 +1004,50 @@ function googleTranslateElementInit() {
                         <img id="res-annotated-image" class="img-fluid rounded-4 shadow-lg border border-2 border-success d-none" style="max-height: 420px; width: auto;" alt="Annotated Detection Result">
                     </div>
 
-                    <div class="row mb-4 p-3 rounded-3" style="background: rgba(0,0,0,0.35); border: 1px solid rgba(180, 230, 57, 0.2);">
-                        <div class="col-sm-7 mb-3 mb-sm-0">
-                            <span class="text-muted small text-uppercase fw-bold">Primary Identification</span>
-                            <h3 id="res-disease-name" class="fw-bold text-success mt-1 mb-2"></h3>
-                            <div class="d-flex align-items-center gap-2 mt-1">
-                                <span id="res-healthy" class="badge"></span>
-                                <span id="res-severity" class="badge bg-secondary"></span>
+                    <!-- Primary Identification Banner -->
+                    <div class="p-4 rounded-4 mb-4 shadow position-relative overflow-hidden" style="background: linear-gradient(135deg, rgba(20, 35, 15, 0.75), rgba(10, 15, 8, 0.9)); border: 1px solid rgba(180, 230, 57, 0.35); box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+                        <div class="row align-items-center">
+                            <div class="col-md-8 mb-3 mb-md-0">
+                                <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                                    <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-1 small fw-bold text-uppercase">Diagnostic Result</span>
+                                    <span id="res-healthy" class="badge rounded-pill px-3 py-1"></span>
+                                    <span id="res-severity" class="badge rounded-pill px-3 py-1"></span>
+                                </div>
+                                <h2 id="res-disease-name" class="fw-bold text-light mb-1" style="letter-spacing: -0.5px;"></h2>
+                                <p class="text-muted small mb-0">Identified through multi-spectral visual symptom matching</p>
                             </div>
-                        </div>
-                        <div class="col-sm-5 text-sm-end">
-                            <span class="text-muted small text-uppercase fw-bold">Model Confidence</span>
-                            <h2 id="res-confidence" class="fw-bold text-light mt-1 mb-0" style="color: #b4e639 !important;"></h2>
+                            <div class="col-md-4 text-md-end">
+                                <div class="d-inline-block text-center p-3 rounded-3" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(180, 230, 57, 0.25); min-width: 150px;">
+                                    <span class="text-muted small text-uppercase fw-bold d-block mb-1">AI Confidence</span>
+                                    <div id="res-confidence" class="fs-1 fw-bold" style="color: #b4e639; font-family: system-ui, sans-serif; line-height: 1;"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Model provenance and the low-confidence notice -->
+                    <!-- Model provenance and low-confidence notice -->
                     <div id="res-notice" class="alert alert-warning d-none" role="alert"></div>
-                    <p id="res-model-meta" class="text-muted small mb-1"></p>
-                    <div id="res-votes" class="small text-muted mb-2 d-none" style="background: rgba(0,0,0,0.35); border: 1px solid rgba(180, 230, 57, 0.2); border-radius: 0.5rem; padding: 0.5rem 0.75rem;"></div>
 
-                    <h4 class="h5 fw-bold text-light mb-3 border-bottom border-secondary pb-2">Top Probable Classifications</h4>
-                    <div class="table-responsive mb-4">
-                        <table class="table table-bordered table-striped">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Detected Disease</th>
-                                    <th style="width: 25%">Confidence</th>
-                                </tr>
-                            </thead>
-                            <tbody id="detections-table-body">
-                            </tbody>
-                        </table>
+                    <!-- Execution Metadata Chips -->
+                    <div id="res-model-meta" class="mb-4"></div>
+
+                    <!-- Model Voting Cards -->
+                    <div id="res-votes" class="mb-4 d-none p-3 rounded-4 shadow-sm" style="background: rgba(15, 20, 12, 0.6); border: 1px solid rgba(180, 230, 57, 0.2);"></div>
+
+                    <!-- Confidence Distribution -->
+                    <div class="mb-4 p-3 rounded-4" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08);">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold text-light mb-0 d-flex align-items-center gap-2">
+                                <span>📊 Top Probable Classifications</span>
+                            </h5>
+                            <span class="text-muted small">Confidence distribution</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-borderless table-dark align-middle mb-0" style="background: transparent;">
+                                <tbody id="detections-table-body">
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <h4 class="h5 fw-bold text-dark mb-3 border-bottom pb-2">Recommended Cure Steps</h4>
