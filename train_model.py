@@ -12,9 +12,19 @@ from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
 
 # --- Configuration ---
-DATASET_DIR = r"c:\Users\Anish\Music\plant detection model\dataset 1"
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Check if dataset 1 is in current dir or parent dir
+if os.path.exists(os.path.join(CURRENT_DIR, "dataset 1")):
+    BASE_DIR = CURRENT_DIR
+else:
+    BASE_DIR = os.path.dirname(CURRENT_DIR)
+
+DATASET_DIR = os.path.join(BASE_DIR, "dataset 1")
 MANIFEST_PATH = os.path.join(DATASET_DIR, "metadata", "metadata", "dataset_manifest.csv")
-IMAGES_BASE_DIR = os.path.join(DATASET_DIR, "master_images", "master_images")
+IMAGES_DIR = os.path.join(DATASET_DIR, "master_images", "master_images", "images")
+SAVE_DIR = os.path.join(BASE_DIR, "checkpoints")
+MODEL_SAVE_PATH = os.path.join(BASE_DIR, "best_plant_model.pth")
+os.makedirs(SAVE_DIR, exist_ok=True)
 
 BATCH_SIZE = 32
 EPOCHS = 5
@@ -22,6 +32,8 @@ LEARNING_RATE = 1e-4
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(f"Using device: {DEVICE}")
+print(f"Dataset dir : {DATASET_DIR}")
+print(f"Images dir  : {IMAGES_DIR}")
 
 # --- Dataset Class ---
 class PlantDiseaseDataset(Dataset):
@@ -36,15 +48,23 @@ class PlantDiseaseDataset(Dataset):
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
         
-        # The manifest has paths like 'images/img_00000000.jpg'
-        img_path = os.path.join(self.img_dir, row["image_path"])
+        # Resolve image path robustly across manifests and platforms
+        raw_path = str(row["image_path"])
+        fname = os.path.basename(raw_path)
+        img_path = os.path.join(self.img_dir, fname)
+
+        if not os.path.exists(img_path):
+            base, ext = os.path.splitext(fname)
+            for cand_ext in [ext.lower(), ext.upper(), ".jpg", ".JPG", ".jpeg", ".png"]:
+                candidate = os.path.join(self.img_dir, base + cand_ext)
+                if os.path.exists(candidate):
+                    img_path = candidate
+                    break
         
         # Convert to RGB (in case of RGBA or Grayscale)
         try:
             image = Image.open(img_path).convert("RGB")
         except Exception as e:
-            print(f"Error loading image {img_path}: {e}")
-            # fallback to a blank image if one fails to load
             image = Image.new("RGB", (224, 224))
             
         label = row["label"]
@@ -98,8 +118,8 @@ def main():
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     
-    train_dataset = PlantDiseaseDataset(train_df, IMAGES_BASE_DIR, transform=train_transform)
-    val_dataset = PlantDiseaseDataset(val_df, IMAGES_BASE_DIR, transform=val_transform)
+    train_dataset = PlantDiseaseDataset(train_df, IMAGES_DIR, transform=train_transform)
+    val_dataset = PlantDiseaseDataset(val_df, IMAGES_DIR, transform=val_transform)
     
     # Set num_workers=0 on Windows to avoid multiprocessing issues initially
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=0)
@@ -173,10 +193,10 @@ def main():
         # Save the best model
         if f1 > best_f1:
             best_f1 = f1
-            torch.save(model.state_dict(), "best_plant_model.pth")
-            print(">>> Saved new best model! <<<")
+            torch.save(model.state_dict(), MODEL_SAVE_PATH)
+            print(f">>> Saved new best model to {MODEL_SAVE_PATH}! <<<")
             
-    print("\nTraining Complete! Best model saved as 'best_plant_model.pth'")
+    print(f"\nTraining Complete! Best model saved to: {MODEL_SAVE_PATH}")
 
 if __name__ == "__main__":
     main()

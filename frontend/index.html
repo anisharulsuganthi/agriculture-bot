@@ -397,6 +397,7 @@
                     </a>
                     <ul class="dropdown-menu dropdown-menu-dark shadow border-success">
                         <li><a class="dropdown-item" href="#" id="nav-disease" onclick="showView('disease')">🍂 Leaf Disease Scan</a></li>
+                        <li><a class="dropdown-item" href="model_analytics.html" target="_blank" id="nav-model-analytics">📊 Model Analytics & Grad-CAM</a></li>
                         <li><a class="dropdown-item" href="#" id="nav-croprec" onclick="showView('croprec')">🌾 Soil-Crop Match</a></li>
                         <li><a class="dropdown-item" href="#" id="nav-yield" onclick="showView('yield')">⚖️ Harvest Yield Predictor</a></li>
                     </ul>
@@ -970,10 +971,13 @@ function googleTranslateElementInit() {
                             <label class="farmer-input-label">AI Models</label>
                             <div id="model-toggles" class="d-flex flex-wrap gap-2">
                                 <label class="model-toggle-badge badge border px-3 py-2" style="cursor: pointer; border-color: rgba(180, 230, 57, 0.4) !important; background: rgba(0,0,0,0.35); color: #e9f5d4;">
+                                    <input type="checkbox" class="form-check-input me-1 model-checkbox" value="resnet50_finetuned" checked> ResNet-50 (Fine-Tuned 281-Class)
+                                </label>
+                                <label class="model-toggle-badge badge border px-3 py-2" style="cursor: pointer; border-color: rgba(180, 230, 57, 0.4) !important; background: rgba(0,0,0,0.35); color: #e9f5d4;">
                                     <input type="checkbox" class="form-check-input me-1 model-checkbox" value="mobilenetv2_finetuned" checked> MobileNetV2 (Fine-Tuned 332-Class)
                                 </label>
                                 <label class="model-toggle-badge badge border px-3 py-2" style="cursor: pointer; border-color: rgba(180, 230, 57, 0.4) !important; background: rgba(0,0,0,0.35); color: #e9f5d4;">
-                                    <input type="checkbox" class="form-check-input me-1 model-checkbox" value="resnet50" checked> ResNet-50
+                                    <input type="checkbox" class="form-check-input me-1 model-checkbox" value="resnet50" checked> ResNet-50 (Hub)
                                 </label>
                                 <label class="model-toggle-badge badge border px-3 py-2" style="cursor: pointer; border-color: rgba(180, 230, 57, 0.4) !important; background: rgba(0,0,0,0.35); color: #e9f5d4;">
                                     <input type="checkbox" class="form-check-input me-1 model-checkbox" value="swin" checked> Swin-Tiny
@@ -982,7 +986,10 @@ function googleTranslateElementInit() {
                                     <input type="checkbox" class="form-check-input me-1 model-checkbox" value="mobilenetv2"> MobileNetV2 (38-Class Base)
                                 </label>
                             </div>
-                            <p id="model-mode-hint" class="farmer-hint-text mt-2 mb-0">3 models enabled → hard voting ensemble</p>
+                            <div class="mt-2 d-flex justify-content-between align-items-center">
+                                <p id="model-mode-hint" class="farmer-hint-text mb-0">4 models enabled → hard voting ensemble</p>
+                                <a href="model_analytics.html" target="_blank" class="small text-decoration-none" style="color: #b4e639;">📊 Model Analytics & Grad-CAM →</a>
+                            </div>
                         </div>
 
                         <div class="d-flex justify-content-end">

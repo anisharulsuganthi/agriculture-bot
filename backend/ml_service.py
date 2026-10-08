@@ -73,10 +73,23 @@ logger = get_logger("ml_service")
 # Model registry
 # --------------------------------------------------------------------------
 MODEL_REGISTRY: Dict[str, Dict[str, Any]] = {
+    "resnet50_finetuned": {
+        "label": "ResNet-50 (Fine-Tuned 281-Class, Val Acc 88.97%)",
+        "source": "checkpoints/best_resnet50_plant_disease.pth",
+        "source_type": "local_pth",
+        "arch": "resnet50",
+    },
+    "convnext_finetuned": {
+        "label": "ConvNeXt-Tiny (Fine-Tuned 281-Class)",
+        "source": "checkpoints/best_convnext_plant_disease.pth",
+        "source_type": "local_pth",
+        "arch": "convnext",
+    },
     "mobilenetv2_finetuned": {
         "label": "MobileNetV2 (Fine-Tuned 332-Class)",
         "source": None,  # local weights: settings.finetuned_model_path
         "source_type": "local_pth",
+        "arch": "mobilenetv2",
     },
     "mobilenetv2": {
         "label": "MobileNetV2 (38-Class Base)",
@@ -209,7 +222,7 @@ def parse_model_selection(models: Optional[str]) -> List[str]:
 class PyTorchLocalPipeline:
     """Callable pipeline interface matching transformers pipeline('image-classification') for custom PyTorch weights."""
 
-    def __init__(self, model_path: str, id2label_path: str, device: str = "cpu") -> None:
+    def __init__(self, model_path: str, id2label_path: str, device: str = "cpu", arch: str = "mobilenetv2") -> None:
         import torch
         import torchvision.models as tv_models
         import torchvision.transforms as tv_transforms
@@ -226,9 +239,25 @@ class PyTorchLocalPipeline:
             self.id2label = {int(k): str(v) for k, v in raw_map.items()}
 
         num_classes = len(self.id2label)
-        net = tv_models.mobilenet_v2()
-        net.classifier[1] = torch.nn.Linear(net.classifier[1].in_features, num_classes)
+        if arch.lower() == "resnet50":
+            net = tv_models.resnet50(weights=None)
+            net.fc = torch.nn.Sequential(
+                torch.nn.Dropout(p=0.4),
+                torch.nn.Linear(net.fc.in_features, num_classes)
+            )
+        elif arch.lower() in {"convnext", "convnext_tiny"}:
+            net = tv_models.convnext_tiny(weights=None)
+            net.classifier[2] = torch.nn.Sequential(
+                torch.nn.Dropout(p=0.3),
+                torch.nn.Linear(net.classifier[2].in_features, num_classes)
+            )
+        else:
+            net = tv_models.mobilenet_v2()
+            net.classifier[1] = torch.nn.Linear(net.classifier[1].in_features, num_classes)
+
         state_dict = torch.load(model_path, map_location=self.device)
+        if "model_state_dict" in state_dict:
+            state_dict = state_dict["model_state_dict"]
         net.load_state_dict(state_dict)
         net.to(self.device)
         net.eval()
@@ -268,40 +297,80 @@ def load_model(model_id: str) -> Any:
         _model_device = device_str
 
         if spec["source_type"] == "local_pth":
-            pth_path = str(settings.finetuned_model_path)
-            id2label_path = str(settings.id2label_path)
-            if not os.path.isfile(pth_path):
-                candidates = [
-                    os.path.join(str(settings.model_dir), "best_plant_model.pth"),
-                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "best_plant_model.pth")),
+            arch = spec.get("arch", "mobilenetv2")
+            if arch.lower() == "resnet50":
+                pth_candidates = [
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "checkpoints", "best_resnet50_plant_disease.pth")),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "best_resnet50_plant_disease.pth")),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "checkpoints", "latest_checkpoint.pth")),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "dhanu", "checkpoints", "best_resnet50_plant_disease.pth")),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "dhanu", "checkpoints", "latest_checkpoint.pth")),
                 ]
-                for cand in candidates:
-                    if os.path.isfile(cand):
-                        pth_path = os.path.abspath(cand)
-                        break
-                else:
-                    raise FileNotFoundError(
-                        f"Fine-tuned plant disease model not found at '{pth_path}'."
-                    )
-            if not os.path.isfile(id2label_path):
-                alt_candidates = [
-                    os.path.join(os.path.dirname(pth_path), "id2label.json"),
-                    os.path.join(str(settings.model_dir), "id2label.json"),
-                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "id2label.json")),
+                pth_path = next((c for c in pth_candidates if os.path.isfile(c)), None)
+                if not pth_path:
+                    raise FileNotFoundError("Fine-tuned ResNet-50 checkpoint not found in checkpoints/.")
+
+                id2label_candidates = [
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "checkpoints", "id2label_resnet50.json")),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "id2label_resnet50.json")),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "dhanu", "checkpoints", "id2label_resnet50.json")),
                 ]
-                for cand in alt_candidates:
-                    if os.path.isfile(cand):
-                        id2label_path = os.path.abspath(cand)
-                        break
-                else:
-                    raise FileNotFoundError(
-                        f"Label mapping file not found at '{id2label_path}'."
-                    )
+                id2label_path = next((c for c in id2label_candidates if os.path.isfile(c)), None)
+                if not id2label_path:
+                    raise FileNotFoundError("ResNet-50 281-class mapping (id2label_resnet50.json) not found in checkpoints/.")
+            elif arch.lower() in {"convnext", "convnext_tiny"}:
+                pth_candidates = [
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "checkpoints", "best_convnext_plant_disease.pth")),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "best_convnext_plant_disease.pth")),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "checkpoints", "latest_convnext_checkpoint.pth")),
+                ]
+                pth_path = next((c for c in pth_candidates if os.path.isfile(c)), None)
+                if not pth_path:
+                    raise FileNotFoundError("Fine-tuned ConvNeXt checkpoint not found in checkpoints/.")
+
+                id2label_candidates = [
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "checkpoints", "id2label_convnext.json")),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "checkpoints", "id2label_resnet50.json")),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "id2label_resnet50.json")),
+                ]
+                id2label_path = next((c for c in id2label_candidates if os.path.isfile(c)), None)
+                if not id2label_path:
+                    raise FileNotFoundError("ConvNeXt label mapping not found in checkpoints/.")
+            else:
+                pth_path = str(settings.finetuned_model_path)
+                id2label_path = str(settings.id2label_path)
+                if not os.path.isfile(pth_path):
+                    candidates = [
+                        os.path.join(str(settings.model_dir), "best_plant_model.pth"),
+                        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "best_plant_model.pth")),
+                    ]
+                    for cand in candidates:
+                        if os.path.isfile(cand):
+                            pth_path = os.path.abspath(cand)
+                            break
+                    else:
+                        raise FileNotFoundError(
+                            f"Fine-tuned plant disease model not found at '{pth_path}'."
+                        )
+                if not os.path.isfile(id2label_path):
+                    alt_candidates = [
+                        os.path.join(os.path.dirname(pth_path), "id2label.json"),
+                        os.path.join(str(settings.model_dir), "id2label.json"),
+                        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "id2label.json")),
+                    ]
+                    for cand in alt_candidates:
+                        if os.path.isfile(cand):
+                            id2label_path = os.path.abspath(cand)
+                            break
+                    else:
+                        raise FileNotFoundError(
+                            f"Label mapping file not found at '{id2label_path}'."
+                        )
 
             started = time.perf_counter()
-            logger.info("Loading fine-tuned PyTorch model from %s (device=%s)", pth_path, _model_device)
+            logger.info("Loading fine-tuned PyTorch model from %s (device=%s, arch=%s)", pth_path, _model_device, arch)
             try:
-                pipe = PyTorchLocalPipeline(pth_path, id2label_path, device=device_str)
+                pipe = PyTorchLocalPipeline(pth_path, id2label_path, device=device_str, arch=arch)
                 _pipelines[model_id] = pipe
                 logger.info("Model '%s' loaded in %.2fs", model_id, time.perf_counter() - started)
                 return pipe

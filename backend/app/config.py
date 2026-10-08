@@ -121,7 +121,7 @@ class Settings:
         self.ml_confidence_floor = _float("ML_CONFIDENCE_FLOOR", 40.0)    # % below this -> "uncertain"
         self.ml_warmup_on_startup = _bool("ML_WARMUP_ON_STARTUP", True)
         # Ensemble: registry ids are declared in ml_service.MODEL_REGISTRY.
-        self.ml_default_models = _str("ML_DEFAULT_MODELS", "mobilenetv2_finetuned")  # used when the request selects none
+        self.ml_default_models = _str("ML_DEFAULT_MODELS", "resnet50_finetuned")  # used when the request selects none
         self.ml_parallel = _bool("ML_PARALLEL", True)                      # concurrent inference on CPU
 
         # ---- uploads --------------------------------------------------

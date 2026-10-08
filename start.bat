@@ -20,6 +20,13 @@ if not exist "%~dp0backend\.env" (
     copy "%~dp0backend\.env.example" "%~dp0backend\.env" >nul
 )
 
+:: Sync latest research charts to UI
+if exist "%~dp0..\sync_charts_to_ui.py" (
+    echo [0/2] Syncing latest research charts and heatmaps to UI...
+    "%PYTHON_EXEC%" "%~dp0..\sync_charts_to_ui.py"
+    echo.
+)
+
 :: 1. Launch Backend API and ML Models
 echo [1/2] Launching Backend API ^& ML Models on http://127.0.0.1:8000 ...
 start "Smart Farm - Backend & ML Engine" cmd /k "cd /d "%~dp0backend" && title Smart Farm Backend && "%PYTHON_EXEC%" main.py"
@@ -33,10 +40,12 @@ echo.
 echo Opening Smart Farm in browser...
 timeout /t 2 /nobreak >nul
 start http://localhost:5500
+start http://localhost:5500/model_analytics.html
 
 echo.
 echo Application started:
-echo   - Web App:      http://localhost:5500
-echo   - Backend API:  http://localhost:8000/docs
+echo   - Main Web App:         http://localhost:5500
+echo   - Model Analytics UI:   http://localhost:5500/model_analytics.html
+echo   - Backend API Docs:     http://localhost:8000/docs
 echo.
 pause
