@@ -73,8 +73,13 @@ logger = get_logger("ml_service")
 # Model registry
 # --------------------------------------------------------------------------
 MODEL_REGISTRY: Dict[str, Dict[str, Any]] = {
+    "mobilenetv2_finetuned": {
+        "label": "MobileNetV2 (Fine-Tuned 332-Class)",
+        "source": None,  # local weights: settings.finetuned_model_path
+        "source_type": "local_pth",
+    },
     "mobilenetv2": {
-        "label": "MobileNetV2",
+        "label": "MobileNetV2 (38-Class Base)",
         "source": None,  # local folder: settings.model_dir
         "source_type": "local",
     },
@@ -201,6 +206,51 @@ def parse_model_selection(models: Optional[str]) -> List[str]:
     return ordered
 
 
+class PyTorchLocalPipeline:
+    """Callable pipeline interface matching transformers pipeline('image-classification') for custom PyTorch weights."""
+
+    def __init__(self, model_path: str, id2label_path: str, device: str = "cpu") -> None:
+        import torch
+        import torchvision.models as tv_models
+        import torchvision.transforms as tv_transforms
+
+        self.device = torch.device(device)
+        self.transform = tv_transforms.Compose([
+            tv_transforms.Resize((224, 224)),
+            tv_transforms.ToTensor(),
+            tv_transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+
+        with open(id2label_path, "r", encoding="utf-8") as f:
+            raw_map = json.load(f)
+            self.id2label = {int(k): str(v) for k, v in raw_map.items()}
+
+        num_classes = len(self.id2label)
+        net = tv_models.mobilenet_v2()
+        net.classifier[1] = torch.nn.Linear(net.classifier[1].in_features, num_classes)
+        state_dict = torch.load(model_path, map_location=self.device)
+        net.load_state_dict(state_dict)
+        net.to(self.device)
+        net.eval()
+        self.net = net
+        self.torch = torch
+
+    def __call__(self, image: Image.Image, top_k: int = 5) -> List[Dict[str, Any]]:
+        img_rgb = image.convert("RGB")
+        tensor = self.transform(img_rgb).unsqueeze(0).to(self.device)
+        with self.torch.no_grad():
+            outputs = self.net(tensor)
+            probs = self.torch.softmax(outputs, dim=1).squeeze(0)
+            k = min(top_k, len(probs))
+            top_probs, top_indices = self.torch.topk(probs, k=k)
+
+        results = []
+        for score, idx in zip(top_probs.tolist(), top_indices.tolist()):
+            label_name = self.id2label.get(idx, f"Class_{idx}")
+            results.append({"label": label_name, "score": float(score)})
+        return results
+
+
 def load_model(model_id: str) -> Any:
     """Load one registry pipeline once per process (thread-safe, idempotent)."""
     global _model_device
@@ -213,15 +263,68 @@ def load_model(model_id: str) -> Any:
             return cached
 
         spec = MODEL_REGISTRY[model_id]
+        device = resolve_device()
+        device_str = "cuda" if device == 0 else "cpu"
+        _model_device = device_str
+
+        if spec["source_type"] == "local_pth":
+            pth_path = str(settings.finetuned_model_path)
+            id2label_path = str(settings.id2label_path)
+            if not os.path.isfile(pth_path):
+                candidates = [
+                    os.path.join(str(settings.model_dir), "best_plant_model.pth"),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "best_plant_model.pth")),
+                ]
+                for cand in candidates:
+                    if os.path.isfile(cand):
+                        pth_path = os.path.abspath(cand)
+                        break
+                else:
+                    raise FileNotFoundError(
+                        f"Fine-tuned plant disease model not found at '{pth_path}'."
+                    )
+            if not os.path.isfile(id2label_path):
+                alt_candidates = [
+                    os.path.join(os.path.dirname(pth_path), "id2label.json"),
+                    os.path.join(str(settings.model_dir), "id2label.json"),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "id2label.json")),
+                ]
+                for cand in alt_candidates:
+                    if os.path.isfile(cand):
+                        id2label_path = os.path.abspath(cand)
+                        break
+                else:
+                    raise FileNotFoundError(
+                        f"Label mapping file not found at '{id2label_path}'."
+                    )
+
+            started = time.perf_counter()
+            logger.info("Loading fine-tuned PyTorch model from %s (device=%s)", pth_path, _model_device)
+            try:
+                pipe = PyTorchLocalPipeline(pth_path, id2label_path, device=device_str)
+                _pipelines[model_id] = pipe
+                logger.info("Model '%s' loaded in %.2fs", model_id, time.perf_counter() - started)
+                return pipe
+            except ImportError as err:
+                logger.warning("torchvision not installed (%s). Falling back to base MobileNetV2 model.", err)
+                if "mobilenetv2" in MODEL_REGISTRY:
+                    fallback_pipe = load_model("mobilenetv2")
+                    _pipelines[model_id] = fallback_pipe
+                    return fallback_pipe
+                raise
+
         source = str(settings.model_dir) if spec["source_type"] == "local" else spec["source"]
         if spec["source_type"] == "local" and not os.path.isdir(source):
+            if os.path.isfile(source) and (source.endswith(".pth") or source.endswith(".pt")):
+                id2label_path = str(settings.id2label_path)
+                pipe = PyTorchLocalPipeline(source, id2label_path, device=device_str)
+                _pipelines[model_id] = pipe
+                return pipe
             raise FileNotFoundError(
                 f"Plant disease model not found at '{source}'. "
                 "Place the fine-tuned model there or set MODEL_DIR in the environment."
             )
 
-        device = resolve_device()
-        _model_device = "cuda" if device == 0 else "cpu"
         started = time.perf_counter()
         logger.info("Loading model '%s' from %s (device=%s)", model_id, source, _model_device)
         pipe = pipeline("image-classification", model=source, device=device)
@@ -334,11 +437,18 @@ def _predict_one(model_id: str, image: Image.Image, top_k: int) -> Dict[str, Any
         raw_results = pipe(image, top_k=top_k)
     except Exception as exc:  # noqa: BLE001 - one bad model must not kill the vote
         logger.error("Model '%s' failed, abstaining from the vote: %s", model_id, exc)
+        err_msg = str(exc).strip().split("\n")[0]
+        if "image processor" in err_msg.lower() or "preprocessor" in err_msg.lower():
+            err_msg = "Hub model preprocessor incompatible"
+        elif "connection" in err_msg.lower() or "timeout" in err_msg.lower():
+            err_msg = "Hub download connection timeout"
+        elif len(err_msg) > 60:
+            err_msg = err_msg[:57] + "..."
         return {
             "id": model_id,
             "label": MODEL_REGISTRY[model_id]["label"],
             "ok": False,
-            "error": str(exc),
+            "error": err_msg,
             "ms": round((time.perf_counter() - started) * 1000, 1),
             "detections": [],
             "top_label": None,

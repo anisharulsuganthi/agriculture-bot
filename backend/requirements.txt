@@ -1,43 +1,30 @@
 # Smart Farm - AI-Powered Agricultural Decision Intelligence System
-# Backend runtime dependencies.
-#
-# Canonical interpreter: CPython 3.10 (64-bit, Windows).
-#   C:\Users\Dhanush\AppData\Local\Programs\Python\Python310\python.exe
-# The bundled backend\venv is 3.10.9 but predates the Phase 2 security work and
-# is missing bcrypt - recreate it with `python -m venv venv` and install this
-# file, or keep using the canonical interpreter above.
-#
-# Install:  python -m pip install -r requirements.txt
-#
-# Versions are pinned to the set the application was verified against.
+# Backend runtime dependencies
 
 # ---- web framework --------------------------------------------------
-fastapi==0.135.1
-uvicorn==0.24.0
-python-multipart==0.0.6        # multipart/form-data (image upload)
-pydantic==2.12.5               # pulled in by fastapi; pinned for reproducibility
+fastapi>=0.115.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+pydantic>=2.8.0
 
 # ---- database -------------------------------------------------------
-SQLAlchemy==2.0.44
+SQLAlchemy>=2.0.0
 
 # ---- security -------------------------------------------------------
-bcrypt==5.0.0                  # password hashing
-PyJWT==2.10.1                  # access tokens
+bcrypt>=4.0.0
+PyJWT>=2.8.0
 
 # ---- configuration --------------------------------------------------
-python-dotenv==1.0.0           # loads backend/.env through app/config.py
+python-dotenv>=1.0.0
 
 # ---- machine learning / computer vision -----------------------------
-# torch is installed from the official CUDA build; on a CPU-only machine use
-#   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
-torch==2.5.1
-transformers==5.2.0            # MobileNetV2 image-classification pipeline
-Pillow==10.4.0                 # image decoding + validation
-requests==2.32.5               # outbound HTTP (weather provider)
-numpy==1.26.4                  # required by torch/transformers
+torch>=2.5.0
+torchvision
+transformers>=4.38.0
+Pillow>=10.0.0
+requests>=2.31.0
+numpy>=1.26.0
 
 # ---- testing (development only) -------------------------------------
-pytest==7.4.3
-httpx==0.28.1                  # fastapi.testclient transport
-
-# Removed in Phase 1 after confirming no import: twilio, timm
+pytest>=7.4.0
+httpx>=0.27.0
