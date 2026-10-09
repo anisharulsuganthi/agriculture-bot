@@ -45,6 +45,15 @@ backend/database.db
 .cache/
 huggingface/
 *.safetensors.tmp
+# Large model checkpoints (>100MB) exceed GitHub's upload limits for public forks.
+# They are hosted via GitHub Releases or Hugging Face.
+checkpoints/best_convnext_plant_disease.pth
+checkpoints/best_resnet50_plant_disease.pth
+checkpoints/latest_*.pth
+latest_*.pth
+dataset 1/
+dataset 2/
+dataset*/
 
 # ---- editors / OS -------------------------------------------------------
 .vscode/

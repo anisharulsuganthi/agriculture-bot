@@ -56,7 +56,14 @@ def get_current_user(
         logger.warning("Legacy X-User-Id authentication used (user_id=%s) - migrate the client to Bearer tokens", user_id)
         return _load_user(db, user_id)
 
-    # Fallback / Demo User Support:
+    if settings.app_env.lower() in ("test", "testing"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Send 'Authorization: Bearer <token>' from /api/auth/login.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Fallback / Demo User Support (dev only):
     # If no token is provided or client skips JWT login, provide or auto-provision
     # a verified demo farmer user rather than blocking features with 401.
     demo_user = db.query(User).filter((User.email == "farmer@harvestiq.ai") | (User.id == 1)).first()

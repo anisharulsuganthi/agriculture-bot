@@ -80,7 +80,7 @@ MODEL_REGISTRY: Dict[str, Dict[str, Any]] = {
         "arch": "resnet50",
     },
     "convnext_finetuned": {
-        "label": "ConvNeXt-Tiny (Fine-Tuned 281-Class)",
+        "label": "ConvNeXt-Tiny (Fine-Tuned 281-Class, Val Acc 89.42%, Test Acc 89.54%)",
         "source": "checkpoints/best_convnext_plant_disease.pth",
         "source_type": "local_pth",
         "arch": "convnext",
@@ -300,8 +300,10 @@ def load_model(model_id: str) -> Any:
             arch = spec.get("arch", "mobilenetv2")
             if arch.lower() == "resnet50":
                 pth_candidates = [
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "checkpoints", "best_resnet50_plant_disease.pth")),
                     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "checkpoints", "best_resnet50_plant_disease.pth")),
                     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "best_resnet50_plant_disease.pth")),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "checkpoints", "latest_checkpoint.pth")),
                     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "checkpoints", "latest_checkpoint.pth")),
                     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "dhanu", "checkpoints", "best_resnet50_plant_disease.pth")),
                     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "dhanu", "checkpoints", "latest_checkpoint.pth")),
@@ -311,6 +313,7 @@ def load_model(model_id: str) -> Any:
                     raise FileNotFoundError("Fine-tuned ResNet-50 checkpoint not found in checkpoints/.")
 
                 id2label_candidates = [
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "checkpoints", "id2label_resnet50.json")),
                     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "checkpoints", "id2label_resnet50.json")),
                     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "id2label_resnet50.json")),
                     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "dhanu", "checkpoints", "id2label_resnet50.json")),
@@ -320,8 +323,10 @@ def load_model(model_id: str) -> Any:
                     raise FileNotFoundError("ResNet-50 281-class mapping (id2label_resnet50.json) not found in checkpoints/.")
             elif arch.lower() in {"convnext", "convnext_tiny"}:
                 pth_candidates = [
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "checkpoints", "best_convnext_plant_disease.pth")),
                     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "checkpoints", "best_convnext_plant_disease.pth")),
                     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "best_convnext_plant_disease.pth")),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "checkpoints", "latest_convnext_checkpoint.pth")),
                     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "checkpoints", "latest_convnext_checkpoint.pth")),
                 ]
                 pth_path = next((c for c in pth_candidates if os.path.isfile(c)), None)
@@ -329,7 +334,9 @@ def load_model(model_id: str) -> Any:
                     raise FileNotFoundError("Fine-tuned ConvNeXt checkpoint not found in checkpoints/.")
 
                 id2label_candidates = [
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "checkpoints", "id2label_convnext.json")),
                     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "checkpoints", "id2label_convnext.json")),
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "checkpoints", "id2label_resnet50.json")),
                     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "checkpoints", "id2label_resnet50.json")),
                     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "id2label_resnet50.json")),
                 ]
@@ -342,6 +349,7 @@ def load_model(model_id: str) -> Any:
                 if not os.path.isfile(pth_path):
                     candidates = [
                         os.path.join(str(settings.model_dir), "best_plant_model.pth"),
+                        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "checkpoints", "best_mobilenetv2_plant_disease.pth")),
                         os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "best_plant_model.pth")),
                     ]
                     for cand in candidates:

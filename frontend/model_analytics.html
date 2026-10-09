@@ -41,7 +41,8 @@
             <h2>User Preference: Active Inference Model</h2>
             <p>Select which AI architecture the system should use for real-time plant disease diagnosis.</p>
             <select id="modelSelect">
-                <option value="resnet50_finetuned">ResNet50 (Fine-Tuned 281-Class) - Best for Cloud/Accuracy</option>
+                <option value="convnext_finetuned" selected>ConvNeXt-Tiny (Fine-Tuned 281-Class, Test Acc 89.54%) - SOTA & Fast</option>
+                <option value="resnet50_finetuned">ResNet50 (Fine-Tuned 281-Class, Test Acc 88.79%) - Cloud/Accuracy</option>
                 <option value="mobilenetv2_finetuned">MobileNetV2 (Fine-Tuned 332-Class) - Best for Edge/Speed</option>
                 <option value="resnet50">ResNet50 (Pretrained HuggingFace Base)</option>
             </select>
@@ -50,10 +51,35 @@
             <p id="saveMsg" style="color: #27ae60; font-weight: bold; display: none;">Preference Saved Successfully!</p>
         </div>
 
-        <!-- Training Charts -->
+        <!-- Head-to-Head Architectural Benchmark -->
         <div class="card">
-            <h2>Training Performance (ResNet50)</h2>
-            <p>Real-time metrics extracted from the latest PyTorch checkpoint during fine-tuning.</p>
+            <h2>Head-to-Head Architecture Benchmark: ConvNeXt-Tiny vs. ResNet-50</h2>
+            <p>Empirical convergence and validation performance on the 281-class agricultural pathology dataset (67,000+ images) on NVIDIA RTX 5050.</p>
+            <div style="text-align: center; margin-top: 15px;">
+                <img src="images/charts/fig5_resnet_vs_convnext_comparison.png" alt="ConvNeXt vs ResNet Comparison" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" onerror="this.src='https://via.placeholder.com/1000x500?text=Comparison+Chart+Generating...'">
+            </div>
+        </div>
+
+        <!-- ConvNeXt-Tiny Training Charts -->
+        <div class="card">
+            <h2>Training Performance: ConvNeXt-Tiny (SOTA 89.54% Test Acc)</h2>
+            <p>15-epoch convergence trajectory with AdamW, Cosine Annealing, and Label Smoothing.</p>
+            <div class="chart-grid">
+                <div>
+                    <h3 style="text-align: center;">Accuracy Curve (89.54% Holdout Test)</h3>
+                    <img src="images/charts/fig4_convnext_accuracy_curve.png" alt="ConvNeXt Accuracy Chart" onerror="this.src='https://via.placeholder.com/600x400?text=ConvNeXt+Accuracy+Chart'">
+                </div>
+                <div>
+                    <h3 style="text-align: center;">Loss Curve (1.2569 Test Loss)</h3>
+                    <img src="images/charts/fig3_convnext_loss_curve.png" alt="ConvNeXt Loss Chart" onerror="this.src='https://via.placeholder.com/600x400?text=ConvNeXt+Loss+Chart'">
+                </div>
+            </div>
+        </div>
+
+        <!-- ResNet-50 Training Charts -->
+        <div class="card">
+            <h2>Training Performance: ResNet-50 (88.79% Test Acc)</h2>
+            <p>20-epoch convergence profile using PyTorch AMP FP16 on RTX 5050 Laptop GPU.</p>
             <div class="chart-grid">
                 <div>
                     <h3 style="text-align: center;">Accuracy Curve</h3>

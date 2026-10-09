@@ -216,5 +216,59 @@ def test_edge_cases_rag_and_assistant():
 
     # Assistant handles mixed intent queries
     mixed_res = process_assistant_message("Tell me about pm-kisan scheme eligibility and documents")
+    mixed_res = process_assistant_message("Tell me about pm-kisan scheme eligibility and documents")
     assert mixed_res["intent"] == "government_schemes"
     assert mixed_res["grounded"] is True
+
+
+def test_farmer_personalized_rag_and_custom_notes(client, alice):
+    # 1. Update Alice's profile to a specific location and land size
+    update_payload = {
+        "farm_location": "Madurai, Tamil Nadu",
+        "land_area_cents": 60.0,
+        "soil_type": "Red Sandy Loam",
+        "primary_crop": "Tomato",
+        "irrigation_source": "Drip Irrigation",
+        "livestock_owned": "2 Dairy Cows"
+    }
+    client.put("/api/farmer/profile", json=update_payload, headers=alice["headers"])
+
+    # 2. Test query with farmer personalization
+    query_payload = {"query": "Am I eligible for PM-KISAN and PMKSY drip irrigation subsidy?"}
+    resp = client.post("/api/knowledge/query", json=query_payload, headers=alice["headers"])
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["grounded"] is True
+    assert "Personalized Assessment" in data["answer"] or data["farmer_assessment"] is not None
+
+    # 3. Add custom farmer knowledge note (e.g. physical Soil Health Card report)
+    note_payload = {
+        "title": "Soil Test Certificate 2026",
+        "category": "soil_test",
+        "content": "Lab Test Result: Nitrogen low (140 kg/ha), Phosphorus high (65 kg/ha), Potassium adequate (210 kg/ha), pH 6.4 slightly acidic."
+    }
+    resp = client.post("/api/knowledge/farmer-notes", json=note_payload, headers=alice["headers"])
+    assert resp.status_code == 200
+    note_data = resp.json()
+    assert note_data["status"] == "success"
+    note_id = note_data["note"]["id"]
+
+    # 4. List farmer knowledge notes
+    resp = client.get("/api/knowledge/farmer-notes", headers=alice["headers"])
+    assert resp.status_code == 200
+    list_data = resp.json()
+    assert list_data["total_notes"] >= 1
+    assert any(n["id"] == note_id for n in list_data["notes"])
+
+    # 5. Query about soil test should retrieve the custom personal note
+    soil_query = {"query": "What is my latest soil test result and nitrogen status?"}
+    resp = client.post("/api/knowledge/query", json=soil_query, headers=alice["headers"])
+    assert resp.status_code == 200
+    soil_rag = resp.json()
+    assert soil_rag["grounded"] is True
+    assert any("custom_" in str(c.get("scheme_id")) or "Soil Test Certificate" in str(c.get("title")) for c in soil_rag["citations"])
+
+    # 6. Delete farmer knowledge note
+    del_resp = client.delete(f"/api/knowledge/farmer-notes/{note_id}", headers=alice["headers"])
+    assert del_resp.status_code == 200
+

@@ -66,6 +66,7 @@ from database import (
     FarmingSession,
     RecommendationLog,
     User,
+    FarmerKnowledgeNote,
     get_db,
     init_db,
     to_date_key,
@@ -1517,15 +1518,96 @@ class RAGQueryRequest(BaseModel):
 @app.post("/api/knowledge/query", tags=["Knowledge Base & Schemes"], summary="Grounded RAG agricultural answering with citations")
 def query_knowledge_base(
     req: RAGQueryRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     farmer_ctx = {
+        "user_id": current_user.id,
+        "name": current_user.name,
         "location": current_user.farm_location,
         "soil_type": current_user.soil_type,
-        "land_area_cents": current_user.land_area_cents
+        "land_area_cents": current_user.land_area_cents,
+        "irrigation_source": current_user.irrigation_source,
+        "primary_crop": current_user.primary_crop,
+        "livestock_owned": current_user.livestock_owned
     }
-    result = answer_agricultural_query(req.query, farmer_context=farmer_ctx)
+    result = answer_agricultural_query(req.query, farmer_context=farmer_ctx, db=db, user_id=current_user.id)
     return result
+
+
+class FarmerNoteCreate(BaseModel):
+    title: str = Field(..., min_length=2, max_length=200, description="Title of farm note or record")
+    category: Optional[str] = Field("farm_record", max_length=50, description="Category: soil_test, advisory, crop_record, general")
+    content: str = Field(..., min_length=5, max_length=5000, description="Detailed record or guideline text")
+
+
+@app.get("/api/knowledge/farmer-notes", tags=["Knowledge Base & Schemes"], summary="List personal farm knowledge notes")
+def get_farmer_knowledge_notes(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    notes = db.query(FarmerKnowledgeNote).filter(FarmerKnowledgeNote.user_id == current_user.id).order_by(FarmerKnowledgeNote.created_at.desc()).all()
+    return {
+        "status": "success",
+        "total_notes": len(notes),
+        "notes": [
+            {
+                "id": n.id,
+                "title": n.title,
+                "category": n.category,
+                "content": n.content,
+                "created_at": n.created_at.isoformat() if n.created_at else ""
+            }
+            for n in notes
+        ]
+    }
+
+
+@app.post("/api/knowledge/farmer-notes", tags=["Knowledge Base & Schemes"], summary="Add personal farm knowledge note or record")
+def create_farmer_knowledge_note(
+    payload: FarmerNoteCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    note = FarmerKnowledgeNote(
+        user_id=current_user.id,
+        title=payload.title,
+        category=payload.category or "farm_record",
+        content=payload.content
+    )
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+    return {
+        "status": "success",
+        "message": "Farmer knowledge note saved successfully",
+        "note": {
+            "id": note.id,
+            "title": note.title,
+            "category": note.category,
+            "content": note.content,
+            "created_at": note.created_at.isoformat() if note.created_at else ""
+        }
+    }
+
+
+@app.delete("/api/knowledge/farmer-notes/{note_id}", tags=["Knowledge Base & Schemes"], summary="Delete personal farm knowledge note")
+def delete_farmer_knowledge_note(
+    note_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    note = db.query(FarmerKnowledgeNote).filter(FarmerKnowledgeNote.id == note_id).first()
+    if not note:
+        raise HTTPException(status_code=404, detail="Farm note not found")
+    if note.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not own this note")
+    db.delete(note)
+    db.commit()
+    return {
+        "status": "success",
+        "message": f"Farm note {note_id} deleted successfully"
+    }
 
 
 # =====================================================================
@@ -1539,15 +1621,20 @@ class AssistantMessageRequest(BaseModel):
 @app.post("/api/assistant/chat", tags=["Conversational Assistant"], summary="Interact with Unified Agricultural AI Assistant")
 def chat_with_assistant(
     req: AssistantMessageRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     farmer_ctx = {
+        "user_id": current_user.id,
+        "name": current_user.name,
         "location": current_user.farm_location,
         "soil_type": current_user.soil_type,
         "land_area_cents": current_user.land_area_cents,
-        "primary_crop": current_user.primary_crop
+        "irrigation_source": current_user.irrigation_source,
+        "primary_crop": current_user.primary_crop,
+        "livestock_owned": current_user.livestock_owned
     }
-    reply = process_assistant_message(req.message, farmer_context=farmer_ctx)
+    reply = process_assistant_message(req.message, farmer_context=farmer_ctx, db=db)
     return {
         "status": "success",
         "query": req.message,

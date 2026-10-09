@@ -45,7 +45,11 @@ def detect_intent(query: str) -> str:
     return "general_agronomy"
 
 
-def process_assistant_message(query: str, farmer_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def process_assistant_message(
+    query: str,
+    farmer_context: Optional[Dict[str, Any]] = None,
+    db: Optional[Any] = None
+) -> Dict[str, Any]:
     """
     Unified entry point for conversational farmer queries.
     Routes query, executes appropriate subsystem, and provides structured response.
@@ -63,12 +67,13 @@ def process_assistant_message(query: str, farmer_context: Optional[Dict[str, Any
     intent = detect_intent(cleaned_query)
     
     if intent == "government_schemes":
-        rag_res = answer_agricultural_query(query, farmer_context)
+        rag_res = answer_agricultural_query(query, farmer_context=farmer_context, db=db)
         return {
             "intent": intent,
             "response": rag_res["answer"],
             "grounded": rag_res["grounded"],
             "citations": rag_res["citations"],
+            "farmer_assessment": rag_res.get("farmer_assessment"),
             "data": None
         }
 

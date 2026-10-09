@@ -220,6 +220,17 @@ class User(Base):
     livestock_owned = Column(String(100), default="Dairy Cattle")
 
 
+class FarmerKnowledgeNote(Base):
+    __tablename__ = "farmer_knowledge_notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    category = Column(String(50), default="farm_record")  # "soil_test", "custom_advisory", "crop_record", "general"
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 def init_db() -> dict:
     """
     Create any missing tables, then apply versioned migrations.
